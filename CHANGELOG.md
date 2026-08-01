@@ -18,6 +18,23 @@ First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric and Paper**
 - Advancements, matching vanilla's task / goal / challenge phrasing
 - Server online and shutting down
 
+**Account linking**
+- `/link` in-game issues a single-use, expiring, `SecureRandom` code; `!link <code>` in Discord
+  redeems it. Starting in Minecraft means the server has already authenticated that side
+- `whitelist-on-link` whitelists players automatically when they link
+- Links persist to `links.json` and survive restarts
+
+**Management channel**
+- Optional second channel where `!`-prefixed messages run as server commands
+- Gated on a Discord role; **a blank `management-role-id` authorises nobody**, not everyone
+- Management messages are never relayed into in-game chat, and unprefixed text never executes
+- Fabric captures real command output; Paper confirms execution (Bukkit cannot intercept it)
+
+**Crash detection**
+- Posts when the JVM exits without a clean shutdown, via a shutdown hook, so it also catches
+  OOM kills rather than only logged exceptions
+- Sent synchronously — the queue's daemon thread would never run during shutdown
+
 **Mentions and commands**
 - `@name` and `@role` typed in Minecraft become real Discord pings, allow-listed by resolved id
   so `@everyone` remains impossible

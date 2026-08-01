@@ -119,6 +119,46 @@ public final class BridgeConfig {
     @SerializedName("show-player-count")
     public boolean showPlayerCount = true;
 
+    // ---- Management ---------------------------------------------------------------------------
+
+    /**
+     * A second channel where server commands may be run from Discord. Blank disables the whole
+     * feature. Keep this channel private — it is remote console access.
+     */
+    @SerializedName("management-channel-id")
+    public String managementChannelId = "";
+
+    /**
+     * Discord role id required to run commands in the management channel. <b>Blank means nobody
+     * can</b> — the feature refuses to run rather than falling open, because a misconfiguration
+     * here hands the server console to anyone who can see the channel.
+     */
+    @SerializedName("management-role-id")
+    public String managementRoleId = "";
+
+    // ---- Account linking -----------------------------------------------------------------------
+
+    /** Enables {@code /link} in-game and {@code !link <code>} in Discord. */
+    @SerializedName("enable-linking")
+    public boolean enableLinking = false;
+
+    /** Add a player to the server whitelist when they successfully link. */
+    @SerializedName("whitelist-on-link")
+    public boolean whitelistOnLink = false;
+
+    /** Minutes a {@code /link} code stays valid. */
+    @SerializedName("link-code-minutes")
+    public int linkCodeMinutes = 10;
+
+    // ---- Crash detection ------------------------------------------------------------------------
+
+    /**
+     * Post to Discord if the JVM exits without a clean shutdown. Detected with a shutdown hook,
+     * so unlike a watchdog it also catches kills and OOM.
+     */
+    @SerializedName("relay-crashes")
+    public boolean relayCrashes = true;
+
     // ---- Derived helpers -----------------------------------------------------------------
 
     public boolean outboundEnabled() {

@@ -20,6 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Paper glue. The same {@link EnderLinkCore} as Fabric, behind a completely different server API
@@ -85,6 +86,40 @@ public final class EnderLinkPaper extends JavaPlugin implements BridgePlatform, 
     @Override
     public int maxPlayers() {
         return getServer().getMaxPlayers();
+    }
+
+    /**
+     * Runs a command as console. Bukkit writes command output to the console sender rather than
+     * returning it, and there is no supported way to swap that sender out, so unlike the Fabric
+     * side this can only report whether the command was accepted.
+     */
+    @Override
+    public String executeConsoleCommand(String command) {
+        try {
+            boolean accepted = getServer().dispatchCommand(getServer().getConsoleSender(), command);
+            return accepted
+                    ? "Ran `" + command + "` — see server console for output."
+                    : "Unknown command: " + command;
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    @Override
+    public boolean setWhitelisted(String playerName, String uuid, boolean whitelisted) {
+        try {
+            getServer().getOfflinePlayer(UUID.fromString(uuid)).setWhitelisted(whitelisted);
+            return true;
+        } catch (Exception e) {
+            getSLF4JLogger().warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public double tps() {
+        double[] tps = getServer().getTPS();
+        return tps.length == 0 ? -1 : tps[0];
     }
 
     // ---- Bukkit events -------------------------------------------------------------------------
@@ -156,13 +191,31 @@ public final class EnderLinkPaper extends JavaPlugin implements BridgePlatform, 
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!command.getName().equalsIgnoreCase("discord")) {
-            return false;
+        if (command.getName().equalsIgnoreCase("discord")) {
+            String invite = core.config().discordInvite;
+            sender.sendMessage(LEGACY.deserialize(invite.isBlank()
+                    ? "§cNo Discord invite is configured."
+                    : "§9Join us on Discord: §b" + invite));
+            return true;
         }
-        String invite = core.config().discordInvite;
-        sender.sendMessage(LEGACY.deserialize(invite.isBlank()
-                ? "§cNo Discord invite is configured."
-                : "§9Join us on Discord: §b" + invite));
-        return true;
+
+        if (command.getName().equalsIgnoreCase("link")) {
+            if (!core.linkingEnabled()) {
+                sender.sendMessage(LEGACY.deserialize("§cAccount linking is disabled."));
+                return true;
+            }
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(LEGACY.deserialize("§cOnly players can link an account."));
+                return true;
+            }
+            String code = core.createLinkCode(player.getUniqueId().toString(), player.getName());
+            // Sent only to the player who ran it — a code visible in public chat could be
+            // redeemed by whoever reads it first.
+            player.sendMessage(LEGACY.deserialize("§9Send §b" + core.config().commandPrefix
+                    + "link " + code + "§9 in Discord to link your account."));
+            return true;
+        }
+
+        return false;
     }
 }

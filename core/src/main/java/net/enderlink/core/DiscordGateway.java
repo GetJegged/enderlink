@@ -11,7 +11,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.Map;
@@ -60,10 +62,18 @@ public final class DiscordGateway {
     /** {@code <:name:123>} / {@code <a:name:123>} — custom emoji. */
     private static final Pattern CUSTOM_EMOJI = Pattern.compile("<a?:([A-Za-z0-9_]+):\\d+>");
 
+    /**
+     * A message as it matters to the bridge. Carries the author's role ids because the
+     * management channel has to answer "is this person allowed to run commands?", and role ids
+     * arrive free on guild messages — asking Discord separately would need a privileged intent.
+     */
+    public record IncomingMessage(String channelId, String authorId, String authorName,
+                                  String content, Set<String> roleIds) { }
+
     /** Called on the gateway thread; the handler is responsible for hopping to the server thread. */
     @FunctionalInterface
     public interface MessageHandler {
-        void onDiscordMessage(String authorName, String content);
+        void onDiscordMessage(IncomingMessage message);
     }
 
     private final BridgeConfig config;
@@ -376,7 +386,13 @@ public final class DiscordGateway {
     }
 
     private void handleMessage(JsonObject d) {
-        if (!config.channelId.equals(optString(d, "channel_id"))) {
+        // Two channels are interesting: the bridged chat channel and, if configured, the
+        // separate management channel.
+        String channelId = optString(d, "channel_id");
+        boolean isChat = config.channelId.equals(channelId);
+        boolean isManagement = !config.managementChannelId.isBlank()
+                && config.managementChannelId.equals(channelId);
+        if (!isChat && !isManagement) {
             return;
         }
 
@@ -409,7 +425,26 @@ public final class DiscordGateway {
             }
         }
 
-        handler.onDiscordMessage(displayNameOf(d, author), content);
+        handler.onDiscordMessage(new IncomingMessage(
+                channelId, optString(author, "id"), displayNameOf(d, author), content, rolesOf(d)));
+    }
+
+    /** Role ids the author holds in this guild, as carried on the message's member object. */
+    private static Set<String> rolesOf(JsonObject message) {
+        if (!message.has("member") || !message.get("member").isJsonObject()) {
+            return Set.of();
+        }
+        JsonObject member = message.getAsJsonObject("member");
+        if (!member.has("roles") || !member.get("roles").isJsonArray()) {
+            return Set.of();
+        }
+        Set<String> roles = new HashSet<>();
+        for (JsonElement element : member.getAsJsonArray("roles")) {
+            if (element.isJsonPrimitive()) {
+                roles.add(element.getAsString());
+            }
+        }
+        return roles;
     }
 
     /**
@@ -486,6 +521,48 @@ public final class DiscordGateway {
                     EnderLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
                 } catch (Exception e) {
                     EnderLinkCore.LOGGER.warn("Could not list Discord roles: {}", e.getMessage());
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // Shutting down.
+        }
+    }
+
+    /**
+     * Posts to an arbitrary channel as the bot. The webhook can only write to the one channel it
+     * belongs to, so management-channel replies have to go through the bot's REST API instead.
+     */
+    public void sendChannelMessage(String channelId, String content) {
+        if (config.botToken.isBlank() || channelId.isBlank()) {
+            return;
+        }
+        JsonObject allowed = new JsonObject();
+        allowed.add("parse", new JsonArray());
+
+        JsonObject body = new JsonObject();
+        body.addProperty("content", DiscordSender.truncate(content, 1900));
+        body.add("allowed_mentions", allowed);
+
+        try {
+            scheduler.execute(() -> {
+                try {
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages"))
+                            .timeout(Duration.ofSeconds(15))
+                            .header("Authorization", "Bot " + config.botToken)
+                            .header("Content-Type", "application/json")
+                            .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                            .POST(HttpRequest.BodyPublishers.ofString(body.toString(),
+                                    java.nio.charset.StandardCharsets.UTF_8))
+                            .build();
+                    HttpResponse<String> response =
+                            http.send(request, HttpResponse.BodyHandlers.ofString());
+                    if (response.statusCode() >= 300) {
+                        EnderLinkCore.LOGGER.warn("Could not post to channel {} (HTTP {}) — does the "
+                                + "bot have Send Messages there?", channelId, response.statusCode());
+                    }
+                } catch (Exception e) {
+                    EnderLinkCore.LOGGER.warn("Could not post to channel {}: {}", channelId, e.getMessage());
                 }
             });
         } catch (java.util.concurrent.RejectedExecutionException e) {

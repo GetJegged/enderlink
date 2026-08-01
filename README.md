@@ -88,11 +88,57 @@ for it.
 
 | Where | Command | Does |
 |---|---|---|
-| Discord | `!list` | Replies with who's online and the player count. |
+| Discord | `!list` | Who's online, with the player count. |
+| Discord | `!tps` | Current ticks per second. |
+| Discord | `!uptime` | How long the server has been up. |
+| Discord | `!link <code>` | Redeems a code from `/link`. |
+| Discord | `!unlink` | Removes your account link. |
 | In-game | `/discord` | Prints your invite link. Only exists if `discord-invite` is set. |
+| In-game | `/link` | Issues a code to redeem in Discord. |
 
 The bot's status also shows `N/M online`, updated as players come and go — visible in the
 member list without opening the channel.
+
+### Account linking
+
+Set `enable-linking: true`. A player runs `/link` in-game, gets a six-character code, and sends
+`!link ABC123` in Discord.
+
+The flow starts **in Minecraft on purpose**: the server has already authenticated that side, so
+the code only has to prove the Discord side. Starting in Discord would let anyone claim any
+username. Codes are single-use, expire after `link-code-minutes`, and come from `SecureRandom` —
+with `whitelist-on-link` enabled a guessable code would be a way onto the server.
+
+Set `whitelist-on-link: true` to whitelist players automatically when they link.
+
+### Management channel
+
+Set `management-channel-id` and `management-role-id` to run server commands from Discord:
+
+```
+!say hello everyone
+!whitelist list
+```
+
+**This is remote console access.** Three things guard it:
+
+- Commands only work in the **management channel**, never the public one.
+- The author must hold the **management role** — checked against the role IDs Discord attaches
+  to the message.
+- **A blank `management-role-id` means nobody is authorised**, not everyone. Misconfiguration
+  fails closed.
+
+Messages in the management channel are never relayed into in-game chat, and unprefixed text is
+never executed — only `!`-prefixed messages run as commands, so ordinary chatter is safe.
+
+On Fabric, command output is captured and posted back. On Paper, Bukkit gives no supported way
+to intercept console output, so the reply confirms execution and points at the server console.
+
+### Crash detection
+
+`relay-crashes` (on by default) posts 💥 **Server stopped unexpectedly** when the JVM exits
+without a clean shutdown. It uses a shutdown hook, so it catches crashes, OOM kills and most
+terminations — not just exceptions the server happens to log.
 
 ---
 

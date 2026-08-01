@@ -12,13 +12,17 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementType;
 import net.minecraft.advancements.DisplayInfo;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.NameAndId;
+import net.minecraft.server.players.UserWhiteListEntry;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Fabric glue. Translates Fabric's events into {@link EnderLinkCore} calls and implements
@@ -86,6 +90,87 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
         return current == null ? 0 : current.getPlayerList().getMaxPlayers();
     }
 
+    /**
+     * Runs a command as console and captures what it prints.
+     *
+     * <p>The output is collected by swapping in a {@link CommandSource} that appends to a buffer
+     * instead of writing to the log — that is what lets a Discord reply carry the real result
+     * rather than just "command sent".
+     */
+    @Override
+    public String executeConsoleCommand(String command) {
+        MinecraftServer current = this.server;
+        if (current == null) {
+            return null;
+        }
+
+        StringBuilder output = new StringBuilder();
+        CommandSource collector = new CommandSource() {
+            @Override
+            public void sendSystemMessage(Component message) {
+                output.append(message.getString()).append('\n');
+            }
+
+            @Override
+            public boolean acceptsSuccess() {
+                return true;
+            }
+
+            @Override
+            public boolean acceptsFailure() {
+                return true;
+            }
+
+            @Override
+            public boolean shouldInformAdmins() {
+                return false;
+            }
+        };
+
+        try {
+            current.getCommands().performPrefixedCommand(
+                    current.createCommandSourceStack().withSource(collector), command);
+        } catch (Exception e) {
+            output.append("Error: ").append(e.getMessage());
+        }
+        return output.toString().strip();
+    }
+
+    @Override
+    public boolean setWhitelisted(String playerName, String uuid, boolean whitelisted) {
+        MinecraftServer current = this.server;
+        if (current == null) {
+            return false;
+        }
+        try {
+            // 26.2 whitelists a NameAndId rather than a GameProfile.
+            NameAndId entry = new NameAndId(UUID.fromString(uuid), playerName);
+            if (whitelisted) {
+                current.getPlayerList().getWhiteList().add(new UserWhiteListEntry(entry));
+            } else {
+                current.getPlayerList().getWhiteList().remove(entry);
+            }
+            return true;
+        } catch (Exception e) {
+            EnderLinkCore.LOGGER.warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public double tps() {
+        MinecraftServer current = this.server;
+        if (current == null) {
+            return -1;
+        }
+        long averageNanos = current.getAverageTickTimeNanos();
+        if (averageNanos <= 0) {
+            return 20.0;
+        }
+        // A tick is 50ms; anything faster than that still caps at 20 TPS.
+        return Math.min(20.0, 1_000_000_000.0 / averageNanos);
+    }
+
     // ---- Event registration ---------------------------------------------------------------------
 
     private void registerLifecycleEvents() {
@@ -134,14 +219,27 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
     private void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
             String invite = core.config().discordInvite;
-            if (invite.isBlank()) {
-                return;
+            if (!invite.isBlank()) {
+                dispatcher.register(Commands.literal("discord").executes(context -> {
+                    context.getSource().sendSuccess(
+                            () -> Component.literal("§9Join us on Discord: §b" + invite), false);
+                    return 1;
+                }));
             }
-            dispatcher.register(Commands.literal("discord").executes(context -> {
-                context.getSource().sendSuccess(
-                        () -> Component.literal("§9Join us on Discord: §b" + invite), false);
-                return 1;
-            }));
+
+            if (core.linkingEnabled()) {
+                dispatcher.register(Commands.literal("link").executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    String code = core.createLinkCode(player.getUUID().toString(),
+                            player.getScoreboardName());
+                    // Sent only to the player who ran it — a code visible in public chat could be
+                    // redeemed by whoever reads it first.
+                    player.sendSystemMessage(Component.literal(
+                            "§9Send §b" + core.config().commandPrefix + "link " + code
+                                    + "§9 in Discord to link your account."));
+                    return 1;
+                }));
+            }
         });
     }
 

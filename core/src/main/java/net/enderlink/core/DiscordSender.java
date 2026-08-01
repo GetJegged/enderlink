@@ -136,6 +136,29 @@ public final class DiscordSender {
     }
 
     /**
+     * Posts a crash notice on the calling thread instead of the queue.
+     *
+     * <p>Called from a JVM shutdown hook, where the queue's daemon worker will not be scheduled
+     * again — anything enqueued at that point is silently lost. Blocking is the only way the
+     * message actually leaves the machine, so the timeouts here are deliberately short.
+     */
+    public void sendCrashBlocking() {
+        JsonObject payload = base(config.serverName, null);
+
+        JsonObject embed = new JsonObject();
+        embed.addProperty("description", "💥 Server stopped **unexpectedly** (no clean shutdown)");
+        embed.addProperty("color", COLOR_DEATH);
+
+        JsonArray embeds = new JsonArray();
+        embeds.add(embed);
+        payload.add("embeds", embeds);
+
+        if (config.outboundEnabled()) {
+            post(payload.toString());
+        }
+    }
+
+    /**
      * Drains the queue before the JVM exits. Without this the "shutting down" message is
      * built and then thrown away when the process dies mid-request.
      */

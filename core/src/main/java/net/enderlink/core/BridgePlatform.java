@@ -32,4 +32,32 @@ public interface BridgePlatform {
 
     /** Configured player cap, for the "N/M online" status. */
     int maxPlayers();
+
+    // ---- Optional capabilities -------------------------------------------------------------------
+    // Defaulted so a new platform can be brought up without implementing everything at once, and
+    // so a platform that genuinely cannot do one of these degrades to a clear message rather than
+    // a crash.
+
+    /**
+     * Runs a command as the server console and returns its output.
+     *
+     * @return command output, or {@code null} if this platform cannot run commands
+     */
+    default String executeConsoleCommand(String command) {
+        return null;
+    }
+
+    /**
+     * Adds or removes a whitelist entry.
+     *
+     * @return false if unsupported or the change failed
+     */
+    default boolean setWhitelisted(String playerName, String uuid, boolean whitelisted) {
+        return false;
+    }
+
+    /** Recent ticks per second, or a negative value if the platform does not expose it. */
+    default double tps() {
+        return -1;
+    }
 }

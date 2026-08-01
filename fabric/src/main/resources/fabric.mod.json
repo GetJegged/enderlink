@@ -9,8 +9,8 @@
   ],
   "contact": {
     "homepage": "https://modrinth.com/mod/enderlink",
-    "sources": "https://github.com/getjegged/enderlink",
-    "issues": "https://github.com/getjegged/enderlink/issues"
+    "sources": "https://github.com/GetJegged/enderlink",
+    "issues": "https://github.com/GetJegged/enderlink/issues"
   },
   "license": "MIT",
   "icon": "assets/enderlink/icon.png",
