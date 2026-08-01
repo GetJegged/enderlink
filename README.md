@@ -79,7 +79,12 @@ immediately; users are learned as they speak in the channel, which avoids needin
 privileged `GUILD_MEMBERS` intent.
 
 **Account linking** (`enable-linking`) — a player runs `/link`, gets a six-character code, and
-sends `!link ABC123` in Discord. The flow starts in Minecraft on purpose: the server has already
+sends `!link ABC123` **in a DM to the bot**, or in the bridged channel.
+
+DMs are the better route: the code is single-use, and whoever posts it is who gets linked, so
+posting it publicly is a (small) race. DMs are accepted **only** for linking — DM content is
+never relayed into in-game chat, and management commands can't run there at all, since a DM
+carries no roles to check. The flow starts in Minecraft on purpose: the server has already
 authenticated that side, so the code only has to prove the Discord side. Codes are single-use,
 expiring and `SecureRandom`. `whitelist-on-link` whitelists them automatically.
 

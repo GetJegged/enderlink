@@ -19,8 +19,8 @@ First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric, NeoForge a
 - Server online and shutting down
 
 **Account linking**
-- `/link` in-game issues a single-use, expiring, `SecureRandom` code; `!link <code>` in Discord
-  redeems it. Starting in Minecraft means the server has already authenticated that side
+- `/link` in-game issues a single-use, expiring, `SecureRandom` code; `!link <code>` redeems it,
+  either in the bridged channel or privately in a DM to the bot. Starting in Minecraft means the server has already authenticated that side
 - `whitelist-on-link` whitelists players automatically when they link
 - Links persist to `links.json` and survive restarts
 

@@ -208,6 +208,15 @@ public final class EnderLinkCore {
             }
         }
 
+        // A DM is a private conversation with the bot, never a chat source. Relaying it would let
+        // anyone who can DM the bot broadcast to every player on the server without being in the
+        // Discord channel at all — or in the Discord server.
+        if (message.direct()) {
+            reply(message, "I only handle `" + config.commandPrefix + "link` and `"
+                    + config.commandPrefix + "unlink` here. Chat goes in the server's channel.");
+            return;
+        }
+
         // The management channel is for commands, not chat — relaying it into the game would
         // put admin chatter in front of every player.
         if (management) {
@@ -401,10 +410,12 @@ public final class EnderLinkCore {
         boolean isManagement = !config.managementChannelId.isBlank()
                 && config.managementChannelId.equals(message.channelId());
 
-        // The webhook can only write to the chat channel, so management replies go through the
-        // bot. The bot is also the fallback for chat replies when no webhook is configured —
-        // otherwise an inbound-only setup would accept commands and answer into the void.
-        if (gateway != null && (isManagement || !config.outboundEnabled())) {
+        // The webhook can only write to the chat channel, so management and DM replies go through
+        // the bot instead. Getting this wrong for a DM would be a leak, not just a nuisance: the
+        // answer to a private link attempt would land in the public channel. The bot is also the
+        // fallback for chat replies when no webhook is configured — otherwise an inbound-only
+        // setup would accept commands and answer into the void.
+        if (gateway != null && (isManagement || message.direct() || !config.outboundEnabled())) {
             gateway.sendChannelMessage(message.channelId(), text);
         } else {
             sender.sendPlain(text);

@@ -41,8 +41,13 @@ import java.util.regex.Pattern;
 public final class DiscordGateway {
     private static final String GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
 
-    /** GUILD_MESSAGES (1 << 9) | MESSAGE_CONTENT (1 << 15). */
-    private static final int INTENTS = 512 | 32768;
+    /**
+     * GUILD_MESSAGES (1 &lt;&lt; 9) | DIRECT_MESSAGES (1 &lt;&lt; 12) | MESSAGE_CONTENT (1 &lt;&lt; 15).
+     *
+     * <p>DIRECT_MESSAGES lets players link privately instead of posting their code into a public
+     * channel. It is not a privileged intent, so it needs no change in the developer portal.
+     */
+    private static final int INTENTS = 512 | 4096 | 32768;
 
     private static final int OP_DISPATCH = 0;
     private static final int OP_HEARTBEAT = 1;
@@ -68,7 +73,7 @@ public final class DiscordGateway {
      * arrive free on guild messages — asking Discord separately would need a privileged intent.
      */
     public record IncomingMessage(String channelId, String authorId, String authorName,
-                                  String content, Set<String> roleIds) { }
+                                  String content, Set<String> roleIds, boolean direct) { }
 
     /** Called on the gateway thread; the handler is responsible for hopping to the server thread. */
     @FunctionalInterface
@@ -386,13 +391,15 @@ public final class DiscordGateway {
     }
 
     private void handleMessage(JsonObject d) {
-        // Two channels are interesting: the bridged chat channel and, if configured, the
-        // separate management channel.
+        // Three sources are interesting: the bridged chat channel, the management channel if one
+        // is configured, and direct messages — which exist so a player can link privately rather
+        // than posting a single-use code into a public channel.
         String channelId = optString(d, "channel_id");
+        boolean direct = !d.has("guild_id");
         boolean isChat = config.channelId.equals(channelId);
         boolean isManagement = !config.managementChannelId.isBlank()
                 && config.managementChannelId.equals(channelId);
-        if (!isChat && !isManagement) {
+        if (!isChat && !isManagement && !direct) {
             return;
         }
 
@@ -425,8 +432,10 @@ public final class DiscordGateway {
             }
         }
 
-        handler.onDiscordMessage(new IncomingMessage(
-                channelId, optString(author, "id"), displayNameOf(d, author), content, rolesOf(d)));
+        // rolesOf is empty for a DM — there is no member object outside a guild. That is exactly
+        // why management commands can never be run from a DM: the role check cannot pass.
+        handler.onDiscordMessage(new IncomingMessage(channelId, optString(author, "id"),
+                displayNameOf(d, author), content, rolesOf(d), direct));
     }
 
     /** Role ids the author holds in this guild, as carried on the message's member object. */
