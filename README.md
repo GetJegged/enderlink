@@ -1,4 +1,4 @@
-# EnderLink
+# Sculklink
 
 **Two-way Discord bridge for Minecraft 26.2+ servers.**
 
@@ -7,9 +7,9 @@ appear in in-game chat. Server-side only — players need no mods.
 
 | Platform | Jar | Drop it in | Notes |
 |---|---|---|---|
-| Fabric | `enderlink-fabric-1.0.0.jar` | `mods/` | Needs Fabric API |
-| NeoForge | `enderlink-neoforge-1.0.0.jar` | `mods/` | Dedicated servers only |
-| Paper | `enderlink-paper-1.0.0.jar` | `plugins/` | Also Purpur, Pufferfish and other forks |
+| Fabric | `sculklink-fabric-1.0.0.jar` | `mods/` | Needs Fabric API |
+| NeoForge | `sculklink-neoforge-1.0.0.jar` | `mods/` | Dedicated servers only |
+| Paper | `sculklink-paper-1.0.0.jar` | `plugins/` | Also Purpur, Pufferfish and other forks |
 
 Minecraft **26.2+** · Java **25+** · MIT · **no external dependencies**
 
@@ -25,7 +25,7 @@ Fabric.
 mature, full-featured choice — account linking, Dynmap, a dev API, five loaders. Use it if you
 want all that.
 
-EnderLink is the small one: a ~30 KB jar, one config file, no database, and no Discord library
+Sculklink is the small one: a ~30 KB jar, one config file, no database, and no Discord library
 to keep in step with Minecraft. Discord is reached with the JDK's own HTTP and WebSocket
 clients and the Gson the server already ships.
 
@@ -33,7 +33,7 @@ clients and the Gson the server already ships.
 
 ## Setup
 
-Start the server once to generate `config/enderlink.json` (`plugins/EnderLink/` on Paper), then:
+Start the server once to generate `config/sculklink.json` (`plugins/Sculklink/` on Paper), then:
 
 **Minecraft → Discord** — channel → *Edit Channel → Integrations → Webhooks → New Webhook* →
 copy the URL into `webhook-url`. Done.
@@ -49,7 +49,7 @@ copy the URL into `webhook-url`. Done.
 5. Enable *Settings → Advanced → Developer Mode*, right-click the channel → **Copy Channel ID**
    → `channel-id`.
 
-Restart. You should see `Connected to Discord as …` and `EnderLink active (inbound=on outbound=on)`.
+Restart. You should see `Connected to Discord as …` and `Sculklink active (inbound=on outbound=on)`.
 
 ---
 
@@ -74,7 +74,7 @@ the channel doubles as an uptime log.
 | In-game | `/link` | Issues a code to redeem in Discord |
 
 **Mentions** — typing `@blake` or `@admins` in Minecraft pings that Discord user or role.
-Only names EnderLink has resolved are ever pinged, and `@everyone` stays impossible. Roles work
+Only names Sculklink has resolved are ever pinged, and `@everyone` stays impossible. Roles work
 immediately; users are learned as they speak in the channel, which avoids needing Discord's
 privileged `GUILD_MEMBERS` intent.
 
@@ -116,7 +116,7 @@ Uses a shutdown hook, so it catches OOM kills too, not just logged exceptions.
 
 ## Configuration
 
-`config/enderlink.json`
+`config/sculklink.json`
 
 | Key | Default | |
 |---|---|---|
@@ -170,7 +170,7 @@ too far for one jar).
 
 | Symptom | Cause |
 |---|---|
-| `EnderLink is idle` | Config blank. Set `webhook-url` at minimum. |
+| `Sculklink is idle` | Config blank. Set `webhook-url` at minimum. |
 | `Discord rejected the webhook post (401/404)` | Webhook URL wrong or deleted. |
 | `Discord refused our intents` | MESSAGE CONTENT INTENT is off. |
 | `Discord rejected the bot token` | Bad or regenerated token. |
@@ -204,7 +204,7 @@ The inbound half can't be faked locally — that needs a real bot token.
 **Layout.** `core/` holds the Discord transport, config, linking and commands with zero
 Minecraft, Fabric, NeoForge or Bukkit types, compiled to Java 21. Each platform is a thin
 adapter behind one five-method interface,
-[`BridgePlatform`](core/src/main/java/net/enderlink/core/BridgePlatform.java). Only Fabric needs
+[`BridgePlatform`](core/src/main/java/net/sculklink/core/BridgePlatform.java). Only Fabric needs
 a mixin, because it's the only platform without an advancement event.
 
 Minecraft 26.1+ ships unobfuscated: no `mappings` dependency, plain `implementation`, and the

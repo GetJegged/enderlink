@@ -16,7 +16,7 @@ neoForge {
     }
 
     mods {
-        enderlink {
+        sculklink {
             sourceSet sourceSets.main
         }
     }

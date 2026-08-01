@@ -1,8 +1,8 @@
-package net.enderlink.neoforge;
+package net.sculklink.neoforge;
 
 import com.mojang.brigadier.CommandDispatcher;
-import net.enderlink.core.BridgePlatform;
-import net.enderlink.core.EnderLinkCore;
+import net.sculklink.core.BridgePlatform;
+import net.sculklink.core.SculkLinkCore;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementType;
 import net.minecraft.advancements.DisplayInfo;
@@ -35,23 +35,23 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * NeoForge glue. Same {@link EnderLinkCore} and the same underlying Minecraft classes as the
+ * NeoForge glue. Same {@link SculkLinkCore} and the same underlying Minecraft classes as the
  * Fabric module — 26.x ships unobfuscated, so only the event plumbing differs.
  *
  * <p>No mixin here either: NeoForge has {@link AdvancementEvent.AdvancementEarnEvent}, so the
  * bytecode surgery Fabric needs to spot advancements is unnecessary.
  */
-@Mod(value = "enderlink", dist = Dist.DEDICATED_SERVER)
-public final class EnderLinkNeoForge implements BridgePlatform {
-    private final EnderLinkCore core;
+@Mod(value = "sculklink", dist = Dist.DEDICATED_SERVER)
+public final class SculkLinkNeoForge implements BridgePlatform {
+    private final SculkLinkCore core;
     /** Volatile: written on the server thread, read on the gateway thread when Discord speaks. */
     private volatile MinecraftServer server;
 
-    public EnderLinkNeoForge(ModContainer container) {
+    public SculkLinkNeoForge(ModContainer container) {
         // Built at mod construction, not at server start: RegisterCommandsEvent fires first and
         // needs the config, and loading it twice would mean two reads and two writes of the same
         // file. FMLPaths is resolved long before either event.
-        this.core = new EnderLinkCore(this);
+        this.core = new SculkLinkCore(this);
         NeoForge.EVENT_BUS.register(this);
     }
 
@@ -151,7 +151,7 @@ public final class EnderLinkNeoForge implements BridgePlatform {
             }
             return true;
         } catch (Exception e) {
-            EnderLinkCore.LOGGER.warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
+            SculkLinkCore.LOGGER.warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
             return false;
         }
     }

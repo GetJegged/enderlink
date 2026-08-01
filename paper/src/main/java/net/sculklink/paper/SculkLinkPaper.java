@@ -1,9 +1,9 @@
-package net.enderlink.paper;
+package net.sculklink.paper;
 
 import io.papermc.paper.advancement.AdvancementDisplay;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import net.enderlink.core.BridgePlatform;
-import net.enderlink.core.EnderLinkCore;
+import net.sculklink.core.BridgePlatform;
+import net.sculklink.core.SculkLinkCore;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.Command;
@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Paper glue. The same {@link EnderLinkCore} as Fabric, behind a completely different server API
+ * Paper glue. The same {@link SculkLinkCore} as Fabric, behind a completely different server API
  * — Bukkit shares nothing with Mojang's own classes.
  *
  * <p>Notably there is no mixin here: Bukkit has a real {@link PlayerAdvancementDoneEvent}, so the
@@ -35,14 +35,14 @@ import java.util.UUID;
  * now returns a Paper type — so a jar compiled for one cannot bind against the other for those
  * two events.
  */
-public final class EnderLinkPaper extends JavaPlugin implements BridgePlatform, Listener {
+public final class SculkLinkPaper extends JavaPlugin implements BridgePlatform, Listener {
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
-    private EnderLinkCore core;
+    private SculkLinkCore core;
 
     @Override
     public void onEnable() {
-        core = new EnderLinkCore(this);
+        core = new SculkLinkCore(this);
         getServer().getPluginManager().registerEvents(this, this);
 
         // Bukkit has no "server fully started" event, so defer a tick — by then the server is

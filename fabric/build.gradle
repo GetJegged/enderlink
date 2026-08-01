@@ -37,7 +37,7 @@ java {
 jar {
     // 26.1+: the build output task is `jar` (was `remapJar`).
     // core is a plain Java project rather than a mod, so its classes are folded in here —
-    // otherwise the mod would load and immediately fail to find EnderLinkCore.
+    // otherwise the mod would load and immediately fail to find SculkLinkCore.
     from project(':core').sourceSets.main.output
 
     from("${rootDir}/LICENSE") {

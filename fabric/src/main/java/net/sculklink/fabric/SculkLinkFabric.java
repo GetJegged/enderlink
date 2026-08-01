@@ -1,7 +1,7 @@
-package net.enderlink.fabric;
+package net.sculklink.fabric;
 
-import net.enderlink.core.BridgePlatform;
-import net.enderlink.core.EnderLinkCore;
+import net.sculklink.core.BridgePlatform;
+import net.sculklink.core.SculkLinkCore;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -25,25 +25,25 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Fabric glue. Translates Fabric's events into {@link EnderLinkCore} calls and implements
+ * Fabric glue. Translates Fabric's events into {@link SculkLinkCore} calls and implements
  * {@link BridgePlatform} — nothing Discord-related lives here.
  */
-public final class EnderLinkFabric implements DedicatedServerModInitializer, BridgePlatform {
-    private static EnderLinkFabric instance;
+public final class SculkLinkFabric implements DedicatedServerModInitializer, BridgePlatform {
+    private static SculkLinkFabric instance;
 
-    private EnderLinkCore core;
+    private SculkLinkCore core;
     /** Volatile: written on the server thread, read on the gateway thread when Discord speaks. */
     private volatile MinecraftServer server;
 
     /** Accessor for the advancement mixin, which has no other way to reach the bridge. */
-    public static EnderLinkFabric get() {
+    public static SculkLinkFabric get() {
         return instance;
     }
 
     @Override
     public void onInitializeServer() {
         instance = this;
-        core = new EnderLinkCore(this);
+        core = new SculkLinkCore(this);
 
         registerLifecycleEvents();
         registerPlayerEvents();
@@ -152,7 +152,7 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
             }
             return true;
         } catch (Exception e) {
-            EnderLinkCore.LOGGER.warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
+            SculkLinkCore.LOGGER.warn("Could not update whitelist for {}: {}", playerName, e.getMessage());
             return false;
         }
     }

@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -121,7 +121,7 @@ public final class DiscordGateway {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "enderlink-gateway");
+            Thread t = new Thread(r, "sculklink-gateway");
             t.setDaemon(true);
             return t;
         });
@@ -157,14 +157,14 @@ public final class DiscordGateway {
         if (!running.get()) {
             return;
         }
-        EnderLinkCore.LOGGER.info("Connecting to Discord gateway…");
+        SculkLinkCore.LOGGER.info("Connecting to Discord gateway…");
 
         http.newWebSocketBuilder()
                 .connectTimeout(Duration.ofSeconds(20))
                 .buildAsync(URI.create(url), new Listener())
                 .whenComplete((ws, error) -> {
                     if (error != null) {
-                        EnderLinkCore.LOGGER.warn("Gateway connection failed: {}", error.getMessage());
+                        SculkLinkCore.LOGGER.warn("Gateway connection failed: {}", error.getMessage());
                         scheduleReconnect();
                     } else {
                         socket = ws;
@@ -189,7 +189,7 @@ public final class DiscordGateway {
         // minute instead of hammering.
         long delay = Math.min(1L << Math.min(reconnectAttempts, 6), 60L);
         reconnectAttempts++;
-        EnderLinkCore.LOGGER.info("Reconnecting to Discord in {}s", delay);
+        SculkLinkCore.LOGGER.info("Reconnecting to Discord in {}s", delay);
 
         try {
             scheduler.schedule(() -> {
@@ -206,7 +206,7 @@ public final class DiscordGateway {
     }
 
     private void fatal(String message) {
-        EnderLinkCore.LOGGER.error("EnderLink inbound disabled: {}", message);
+        SculkLinkCore.LOGGER.error("Sculklink inbound disabled: {}", message);
         running.set(false);
         cancelHeartbeat();
     }
@@ -228,7 +228,7 @@ public final class DiscordGateway {
                     // a non-1000 code, which tells Discord to keep the session resumable.
                     // Stop beating first, or this fires again every interval while the close
                     // is in flight.
-                    EnderLinkCore.LOGGER.warn("Discord did not acknowledge our heartbeat, reconnecting");
+                    SculkLinkCore.LOGGER.warn("Discord did not acknowledge our heartbeat, reconnecting");
                     cancelHeartbeat();
                     WebSocket ws = socket;
                     if (ws != null) {
@@ -277,8 +277,8 @@ public final class DiscordGateway {
     private void sendIdentify() {
         JsonObject properties = new JsonObject();
         properties.addProperty("os", System.getProperty("os.name", "linux"));
-        properties.addProperty("browser", "enderlink");
-        properties.addProperty("device", "enderlink");
+        properties.addProperty("browser", "sculklink");
+        properties.addProperty("device", "sculklink");
 
         JsonObject d = new JsonObject();
         d.addProperty("token", config.botToken);
@@ -310,7 +310,7 @@ public final class DiscordGateway {
         try {
             root = JsonParser.parseString(json).getAsJsonObject();
         } catch (Exception e) {
-            EnderLinkCore.LOGGER.warn("Unparseable gateway frame: {}", e.getMessage());
+            SculkLinkCore.LOGGER.warn("Unparseable gateway frame: {}", e.getMessage());
             return;
         }
 
@@ -379,11 +379,11 @@ public final class DiscordGateway {
                 resumeUrl = optString(d, "resume_gateway_url");
                 reconnectAttempts = 0;
                 String botName = d.has("user") ? optString(d.getAsJsonObject("user"), "username") : "bot";
-                EnderLinkCore.LOGGER.info("Connected to Discord as {}", botName);
+                SculkLinkCore.LOGGER.info("Connected to Discord as {}", botName);
             }
             case "RESUMED" -> {
                 reconnectAttempts = 0;
-                EnderLinkCore.LOGGER.info("Resumed Discord session");
+                SculkLinkCore.LOGGER.info("Resumed Discord session");
             }
             case "MESSAGE_CREATE" -> handleMessage(d);
             default -> { }
@@ -506,7 +506,7 @@ public final class DiscordGateway {
                 .uri(URI.create("https://discord.com/api/v10/guilds/" + gid + "/roles"))
                 .timeout(Duration.ofSeconds(15))
                 .header("Authorization", "Bot " + config.botToken)
-                .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                .header("User-Agent", "Sculklink (Minecraft Fabric mod, 1.0.0)")
                 .GET()
                 .build();
 
@@ -516,7 +516,7 @@ public final class DiscordGateway {
         http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
                     if (response.statusCode() != 200) {
-                        EnderLinkCore.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
+                        SculkLinkCore.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
                                 + "from in-game will not work", response.statusCode());
                         return;
                     }
@@ -529,13 +529,13 @@ public final class DiscordGateway {
                                 roleIds.put(name.toLowerCase(Locale.ROOT), id);
                             }
                         }
-                        EnderLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
+                        SculkLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
                     } catch (RuntimeException e) {
-                        EnderLinkCore.LOGGER.warn("Could not parse Discord roles: {}", e.getMessage());
+                        SculkLinkCore.LOGGER.warn("Could not parse Discord roles: {}", e.getMessage());
                     }
                 })
                 .exceptionally(error -> {
-                    EnderLinkCore.LOGGER.warn("Could not list Discord roles: {}", error.getMessage());
+                    SculkLinkCore.LOGGER.warn("Could not list Discord roles: {}", error.getMessage());
                     return null;
                 });
     }
@@ -560,7 +560,7 @@ public final class DiscordGateway {
                 .timeout(Duration.ofSeconds(15))
                 .header("Authorization", "Bot " + config.botToken)
                 .header("Content-Type", "application/json")
-                .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                .header("User-Agent", "Sculklink (Minecraft Fabric mod, 1.0.0)")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString(),
                         java.nio.charset.StandardCharsets.UTF_8))
                 .build();
@@ -569,12 +569,12 @@ public final class DiscordGateway {
         http.sendAsync(request, HttpResponse.BodyHandlers.discarding())
                 .thenAccept(response -> {
                     if (response.statusCode() >= 300) {
-                        EnderLinkCore.LOGGER.warn("Could not post to channel {} (HTTP {}) — does the "
+                        SculkLinkCore.LOGGER.warn("Could not post to channel {} (HTTP {}) — does the "
                                 + "bot have Send Messages there?", channelId, response.statusCode());
                     }
                 })
                 .exceptionally(error -> {
-                    EnderLinkCore.LOGGER.warn("Could not post to channel {}: {}", channelId, error.getMessage());
+                    SculkLinkCore.LOGGER.warn("Could not post to channel {}: {}", channelId, error.getMessage());
                     return null;
                 });
     }
@@ -694,7 +694,7 @@ public final class DiscordGateway {
                 try {
                     handleFrame(complete);
                 } catch (Exception e) {
-                    EnderLinkCore.LOGGER.error("Error handling gateway frame", e);
+                    SculkLinkCore.LOGGER.error("Error handling gateway frame", e);
                 }
             }
 
@@ -705,11 +705,11 @@ public final class DiscordGateway {
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             cancelHeartbeat();
-            EnderLinkCore.LOGGER.info("Discord gateway closed ({}): {}", statusCode, reason);
+            SculkLinkCore.LOGGER.info("Discord gateway closed ({}): {}", statusCode, reason);
 
             switch (statusCode) {
                 case CLOSE_AUTH_FAILED -> {
-                    fatal("Discord rejected the bot token. Check `bot-token` in config/enderlink.json.");
+                    fatal("Discord rejected the bot token. Check `bot-token` in config/sculklink.json.");
                     return null;
                 }
                 case CLOSE_DISALLOWED_INTENTS, CLOSE_INVALID_INTENTS -> {
@@ -734,7 +734,7 @@ public final class DiscordGateway {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             cancelHeartbeat();
-            EnderLinkCore.LOGGER.warn("Discord gateway error: {}",
+            SculkLinkCore.LOGGER.warn("Discord gateway error: {}",
                     error == null ? "unknown" : error.getMessage());
             scheduleReconnect();
         }

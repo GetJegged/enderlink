@@ -1,4 +1,4 @@
-// Platform-agnostic half of EnderLink: Discord transport, config, formatting, commands.
+// Platform-agnostic half of Sculklink: Discord transport, config, formatting, commands.
 // No Minecraft, Fabric or Bukkit types appear anywhere in this module.
 
 dependencies {

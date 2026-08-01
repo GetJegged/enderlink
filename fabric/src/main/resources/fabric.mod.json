@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "id": "enderlink",
+  "id": "sculklink",
   "version": "${version}",
-  "name": "EnderLink",
+  "name": "Sculklink",
   "description": "Two-way Discord bridge for Fabric 26.2+ servers. Joins, leaves, deaths, advancements and server status are posted to Discord; messages typed in Discord appear in in-game chat. Server-side only, and no external libraries — players need no mods.",
   "authors": [
     "Blake"
   ],
   "contact": {
-    "homepage": "https://modrinth.com/mod/enderlink",
-    "sources": "https://github.com/GetJegged/enderlink",
-    "issues": "https://github.com/GetJegged/enderlink/issues"
+    "homepage": "https://modrinth.com/mod/sculklink",
+    "sources": "https://github.com/GetJegged/sculklink",
+    "issues": "https://github.com/GetJegged/sculklink/issues"
   },
   "license": "MIT",
-  "icon": "assets/enderlink/icon.png",
+  "icon": "assets/sculklink/icon.png",
   "environment": "server",
   "entrypoints": {
     "server": [
-      "net.enderlink.fabric.EnderLinkFabric"
+      "net.sculklink.fabric.SculkLinkFabric"
     ]
   },
   "mixins": [
-    "enderlink.mixins.json"
+    "sculklink.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

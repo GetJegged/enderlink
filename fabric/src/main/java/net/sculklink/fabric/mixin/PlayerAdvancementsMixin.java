@@ -1,6 +1,6 @@
-package net.enderlink.fabric.mixin;
+package net.sculklink.fabric.mixin;
 
-import net.enderlink.fabric.EnderLinkFabric;
+import net.sculklink.fabric.SculkLinkFabric;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,10 +46,10 @@ public abstract class PlayerAdvancementsMixin {
      * target's constructors, and not depending on that keeps this correct regardless.
      */
     @Unique
-    private Set<AdvancementHolder> enderlink$reported;
+    private Set<AdvancementHolder> sculklink$reported;
 
     @Inject(method = "award", at = @At("RETURN"))
-    private void enderlink$announceCompletion(AdvancementHolder advancement, String criterionKey,
+    private void sculklink$announceCompletion(AdvancementHolder advancement, String criterionKey,
                                                   CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ()) {
             return;
@@ -60,14 +60,14 @@ public abstract class PlayerAdvancementsMixin {
             return;
         }
 
-        if (this.enderlink$reported == null) {
-            this.enderlink$reported = new HashSet<>();
+        if (this.sculklink$reported == null) {
+            this.sculklink$reported = new HashSet<>();
         }
-        if (!this.enderlink$reported.add(advancement)) {
+        if (!this.sculklink$reported.add(advancement)) {
             return;
         }
 
-        EnderLinkFabric bridge = EnderLinkFabric.get();
+        SculkLinkFabric bridge = SculkLinkFabric.get();
         if (bridge != null && this.player != null) {
             bridge.onAdvancement(this.player, advancement);
         }
@@ -78,10 +78,10 @@ public abstract class PlayerAdvancementsMixin {
      * earned again would never post a second time.
      */
     @Inject(method = "revoke", at = @At("RETURN"))
-    private void enderlink$forgetRevoked(AdvancementHolder advancement, String criterionKey,
+    private void sculklink$forgetRevoked(AdvancementHolder advancement, String criterionKey,
                                              CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueZ() && this.enderlink$reported != null) {
-            this.enderlink$reported.remove(advancement);
+        if (cir.getReturnValueZ() && this.sculklink$reported != null) {
+            this.sculklink$reported.remove(advancement);
         }
     }
 }

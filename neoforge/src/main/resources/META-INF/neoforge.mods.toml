@@ -1,28 +1,28 @@
 modLoader = "javafml"
 loaderVersion = "[1,)"
 license = "MIT"
-issueTrackerURL = "https://github.com/GetJegged/enderlink/issues"
+issueTrackerURL = "https://github.com/GetJegged/sculklink/issues"
 
 [[mods]]
-modId = "enderlink"
+modId = "sculklink"
 version = "${version}"
-displayName = "EnderLink"
+displayName = "Sculklink"
 authors = "GetJegged"
-logoFile = "assets/enderlink/icon.png"
+logoFile = "assets/sculklink/icon.png"
 description = '''
 Two-way Discord bridge. Joins, leaves, deaths, advancements, chat and mentions go to a Discord
 channel; messages typed there appear in in-game chat. Server-side only, and no external
 libraries — players need no mods.
 '''
 
-[[dependencies.enderlink]]
+[[dependencies.sculklink]]
 modId = "neoforge"
 type = "required"
 versionRange = "[26.2,)"
 ordering = "NONE"
 side = "SERVER"
 
-[[dependencies.enderlink]]
+[[dependencies.sculklink]]
 modId = "minecraft"
 type = "required"
 versionRange = "[26.2,)"

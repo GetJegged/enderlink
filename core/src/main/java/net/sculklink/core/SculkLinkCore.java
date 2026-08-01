@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +20,8 @@ import java.util.TreeSet;
  * Discord connections, message formatting, command handling, mention resolution — lives here
  * and is shared by every platform.
  */
-public final class EnderLinkCore {
-    public static final Logger LOGGER = LoggerFactory.getLogger("EnderLink");
+public final class SculkLinkCore {
+    public static final Logger LOGGER = LoggerFactory.getLogger("Sculklink");
 
     /**
      * How long the crash hook waits for a clean shutdown to be signalled before concluding the
@@ -43,7 +43,7 @@ public final class EnderLinkCore {
     /** Set by {@link #serverStopping()}; a shutdown hook running without it means a crash. */
     private volatile boolean cleanShutdown;
 
-    public EnderLinkCore(BridgePlatform platform) {
+    public SculkLinkCore(BridgePlatform platform) {
         this.platform = platform;
         this.config = BridgeConfig.load(platform.configDir());
         this.sender = new DiscordSender(config);
@@ -70,7 +70,7 @@ public final class EnderLinkCore {
         }
 
         if (!config.outboundEnabled() && !config.inboundEnabled()) {
-            LOGGER.warn("EnderLink is idle — fill in the config and restart. "
+            LOGGER.warn("Sculklink is idle — fill in the config and restart. "
                     + "Outbound needs `webhook-url`; inbound needs `bot-token` and `channel-id`.");
         }
         if (!config.managementChannelId.isBlank() && config.managementRoleId.isBlank()) {
@@ -132,7 +132,7 @@ public final class EnderLinkCore {
     public void serverStarted() {
         if (gateway != null) {
             gateway.start();
-            LOGGER.info("EnderLink active ({})", gateway.describe());
+            LOGGER.info("Sculklink active ({})", gateway.describe());
         }
         if (config.relayServerStatus) {
             sender.sendServerStarted();
@@ -189,7 +189,7 @@ public final class EnderLinkCore {
             }
             LOGGER.warn("Server exited without a clean shutdown — reporting a crash to Discord");
             sender.sendCrashBlocking();
-        }, "enderlink-crash-hook"));
+        }, "sculklink-crash-hook"));
     }
 
     /**
@@ -365,7 +365,7 @@ public final class EnderLinkCore {
      */
     private String helpText(boolean management) {
         String p = config.commandPrefix;
-        StringBuilder out = new StringBuilder("**EnderLink** — bridging this channel with the "
+        StringBuilder out = new StringBuilder("**Sculklink** — bridging this channel with the "
                 + "Minecraft server.\n\n");
 
         if (config.enableListCommand) {

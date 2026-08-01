@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -163,10 +163,10 @@ public final class LinkStore {
             if (data.names != null) {
                 names.putAll(data.names);
             }
-            EnderLinkCore.LOGGER.info("Loaded {} Discord account link(s)", discordToMinecraft.size());
+            SculkLinkCore.LOGGER.info("Loaded {} Discord account link(s)", discordToMinecraft.size());
         } catch (IOException | RuntimeException e) {
             // Never overwrite a file we could not understand — it is the only copy of the links.
-            EnderLinkCore.LOGGER.error("Could not read {} ({}); linking will start empty and the "
+            SculkLinkCore.LOGGER.error("Could not read {} ({}); linking will start empty and the "
                     + "file will not be overwritten until a successful link.", path, e.getMessage());
         }
     }
@@ -179,7 +179,7 @@ public final class LinkStore {
             Files.createDirectories(path.getParent());
             Files.writeString(path, GSON.toJson(data) + System.lineSeparator(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            EnderLinkCore.LOGGER.error("Could not write {}: {}", path, e.getMessage());
+            SculkLinkCore.LOGGER.error("Could not write {}: {}", path, e.getMessage());
         }
     }
 }

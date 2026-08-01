@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -60,7 +60,7 @@ public final class DiscordSender {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.queue = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "enderlink-sender");
+            Thread t = new Thread(r, "sculklink-sender");
             t.setDaemon(true);
             return t;
         });
@@ -167,13 +167,13 @@ public final class DiscordSender {
                     .uri(URI.create(config.webhookUrl))
                     .timeout(Duration.ofSeconds(4))
                     .header("Content-Type", "application/json")
-                    .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                    .header("User-Agent", "Sculklink (Minecraft Fabric mod, 1.0.0)")
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
                     .build();
             http.send(request, HttpResponse.BodyHandlers.discarding());
         } catch (Exception e) {
             // Nothing useful to do — the JVM is on its way out.
-            EnderLinkCore.LOGGER.warn("Could not report the crash to Discord: {}", e.getMessage());
+            SculkLinkCore.LOGGER.warn("Could not report the crash to Discord: {}", e.getMessage());
         }
     }
 
@@ -281,7 +281,7 @@ public final class DiscordSender {
                         .uri(URI.create(config.webhookUrl))
                         .timeout(Duration.ofSeconds(15))
                         .header("Content-Type", "application/json")
-                        .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                        .header("User-Agent", "Sculklink (Minecraft Fabric mod, 1.0.0)")
                         .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                         .build();
 
@@ -294,7 +294,7 @@ public final class DiscordSender {
 
                 if (status == 429) {
                     long waitMillis = retryAfterMillis(response.body());
-                    EnderLinkCore.LOGGER.warn("Discord rate limited us, waiting {}ms", waitMillis);
+                    SculkLinkCore.LOGGER.warn("Discord rate limited us, waiting {}ms", waitMillis);
                     Thread.sleep(waitMillis);
                     continue;
                 }
@@ -306,14 +306,14 @@ public final class DiscordSender {
 
                 // 4xx that is not a rate limit: a bad or deleted webhook URL. Retrying will
                 // not fix it, so say so plainly once and drop the message.
-                EnderLinkCore.LOGGER.error("Discord rejected the webhook post (HTTP {}): {}",
+                SculkLinkCore.LOGGER.error("Discord rejected the webhook post (HTTP {}): {}",
                         status, truncate(response.body(), 300));
                 return;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
-                EnderLinkCore.LOGGER.warn("Failed to reach Discord ({}), attempt {}/3", e.getMessage(), attempt + 1);
+                SculkLinkCore.LOGGER.warn("Failed to reach Discord ({}), attempt {}/3", e.getMessage(), attempt + 1);
                 try {
                     Thread.sleep(1000L * (attempt + 1));
                 } catch (InterruptedException ie) {

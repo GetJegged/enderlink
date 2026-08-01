@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-A stand-in for a Discord webhook, for testing EnderLink without Discord.
+A stand-in for a Discord webhook, for testing Sculklink without Discord.
 
 Run it, point `webhook-url` at it, and every message the mod would send to Discord is printed
 to your terminal instead — including the exact JSON, so you can see the embed colours, the
@@ -25,7 +25,7 @@ BOLD = "\033[1m"
 
 
 def colour_for(value):
-    """Maps EnderLink's embed colours back to something visible in a terminal."""
+    """Maps Sculklink's embed colours back to something visible in a terminal."""
     return {
         0x43B581: "\033[32m",   # join / online   - green
         0xF04747: "\033[31m",   # leave           - red
@@ -93,7 +93,7 @@ def main():
     Handler.show_json = args.json
     url = f"http://127.0.0.1:{args.port}/webhook"
     print(f"Pretending to be Discord on {url}")
-    print(f'Set  "webhook-url": "{url}"  in your EnderLink config, then start the server.\n')
+    print(f'Set  "webhook-url": "{url}"  in your Sculklink config, then start the server.\n')
 
     try:
         HTTPServer(("127.0.0.1", args.port), Handler).serve_forever()

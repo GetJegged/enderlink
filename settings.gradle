@@ -16,7 +16,7 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
-rootProject.name = 'enderlink'
+rootProject.name = 'sculklink'
 
 // core holds every line that does not touch a server API; the rest are thin platform adapters.
 include 'core'

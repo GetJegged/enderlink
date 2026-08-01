@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Everything the operator can tune, read from {@code config/enderlink.json}.
+ * Everything the operator can tune, read from {@code config/sculklink.json}.
  *
  * <p>The file is written back out after loading so that a config from an older version of
  * the mod gains any newly-added keys (with their defaults) instead of silently ignoring them.
@@ -203,7 +203,7 @@ public final class BridgeConfig {
      *     that is, which is the only reason this is a parameter
      */
     public static BridgeConfig load(Path configDir) {
-        Path path = configDir.resolve("enderlink.json");
+        Path path = configDir.resolve("sculklink.json");
         BridgeConfig config = new BridgeConfig();
 
         if (Files.exists(path)) {
@@ -214,7 +214,7 @@ public final class BridgeConfig {
                     config = parsed;
                 }
             } catch (IOException | JsonSyntaxException e) {
-                EnderLinkCore.LOGGER.error(
+                SculkLinkCore.LOGGER.error(
                         "Could not read {} ({}). Running with defaults — the file was left untouched, fix it and restart.",
                         path, e.getMessage());
                 config.path = path;
@@ -237,7 +237,7 @@ public final class BridgeConfig {
             Files.createDirectories(path.getParent());
             Files.writeString(path, GSON.toJson(this) + System.lineSeparator(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            EnderLinkCore.LOGGER.error("Could not write {}: {}", path, e.getMessage());
+            SculkLinkCore.LOGGER.error("Could not write {}: {}", path, e.getMessage());
         }
     }
 }

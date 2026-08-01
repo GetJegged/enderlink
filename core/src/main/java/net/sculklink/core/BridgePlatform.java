@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.List;
  * needs to know which one it is talking to.
  *
  * <p>Deliberately narrow. Anything added here has to be implemented again on every platform, so
- * new functionality belongs in {@link EnderLinkCore} wherever it possibly can.
+ * new functionality belongs in {@link SculkLinkCore} wherever it possibly can.
  */
 public interface BridgePlatform {
     /** Directory the config file lives in. Created if absent. */

@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: enderlink-jars
+          name: sculklink-jars
           path: |
             fabric/build/libs/*.jar
             paper/build/libs/*.jar

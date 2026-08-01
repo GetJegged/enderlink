@@ -1,4 +1,4 @@
-package net.enderlink.core;
+package net.sculklink.core;
 
 import java.util.ArrayList;
 import java.util.List;

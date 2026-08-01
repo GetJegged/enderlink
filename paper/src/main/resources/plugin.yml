@@ -1,9 +1,9 @@
-name: EnderLink
+name: Sculklink
 version: '${version}'
-main: net.enderlink.paper.EnderLinkPaper
+main: net.sculklink.paper.SculkLinkPaper
 description: Two-way Discord bridge. Chat, joins, deaths, advancements and mentions.
 author: GetJegged
-website: https://github.com/GetJegged/enderlink
+website: https://github.com/GetJegged/sculklink
 # Declares which Bukkit API generation this was written against. 1.21 is a conservative floor
 # that newer servers still accept. Paper (and forks) only — see README for why not Spigot.
 api-version: '1.21'
