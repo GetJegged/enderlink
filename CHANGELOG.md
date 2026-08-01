@@ -30,6 +30,11 @@ First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric, NeoForge a
 - Management messages are never relayed into in-game chat, and unprefixed text never executes
 - Fabric captures real command output; Paper confirms execution (Bukkit cannot intercept it)
 
+**Moderation**
+- `blocked-words` filters messages in both directions, ignoring case, spacing, punctuation and
+  digit-for-letter swaps
+- `inbound-messages-per-minute` caps how much one Discord user can push into the game
+
 **Crash detection**
 - Posts when the JVM exits without a clean shutdown, via a shutdown hook, so it also catches
   OOM kills rather than only logged exceptions

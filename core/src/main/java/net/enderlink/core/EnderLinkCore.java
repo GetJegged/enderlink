@@ -3,8 +3,12 @@ package net.enderlink.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -31,6 +35,9 @@ public final class EnderLinkCore {
     private final DiscordSender sender;
     private final DiscordGateway gateway;
     private final LinkStore links;
+    private final ContentFilter filter;
+    /** Discord user id -> timestamps of their recent inbound messages. */
+    private final Map<String, Deque<Long>> inboundTimes = new ConcurrentHashMap<>();
 
     private final long startedAt = System.currentTimeMillis();
     /** Set by {@link #serverStopping()}; a shutdown hook running without it means a crash. */
@@ -41,6 +48,7 @@ public final class EnderLinkCore {
         this.config = BridgeConfig.load(platform.configDir());
         this.sender = new DiscordSender(config);
         this.links = new LinkStore(platform.configDir(), config.linkCodeMinutes);
+        this.filter = new ContentFilter(config.blockedWords);
 
         if (config.inboundEnabled()) {
             this.gateway = new DiscordGateway(config, this::onDiscordMessage);
@@ -70,7 +78,43 @@ public final class EnderLinkCore {
                     + "commands will be refused. Set the role id to enable them.");
         }
 
+        if (filter.isEnabled()) {
+            LOGGER.info("Content filter active with {} blocked word(s)", config.blockedWords.size());
+        }
+
         registerCrashHook();
+    }
+
+    /**
+     * Per-Discord-user rate limit for messages entering the game.
+     *
+     * <p>Only inbound is limited. Outbound already cannot flood: it goes through one ordered
+     * queue that honours Discord's own rate limits, and in-game chat is capped by the server.
+     * Inbound has no such ceiling — one Discord member can put text in front of every player.
+     */
+    private boolean allowInbound(String authorId) {
+        int limit = config.inboundMessagesPerMinute;
+        if (limit <= 0) {
+            return true;
+        }
+
+        long now = System.currentTimeMillis();
+        long cutoff = now - 60_000L;
+
+        // Bounded: entries are dropped once their window empties, so a busy channel cannot grow
+        // this map without limit.
+        inboundTimes.entrySet().removeIf(e -> e.getValue().isEmpty()
+                || e.getValue().peekLast() < cutoff);
+
+        Deque<Long> times = inboundTimes.computeIfAbsent(authorId, k -> new ArrayDeque<>());
+        while (!times.isEmpty() && times.peekFirst() < cutoff) {
+            times.pollFirst();
+        }
+        if (times.size() >= limit) {
+            return false;
+        }
+        times.addLast(now);
+        return true;
     }
 
     /** Exposed for the in-game {@code /link} command. */
@@ -173,9 +217,17 @@ public final class EnderLinkCore {
     }
 
     public void playerChat(String name, String uuid, String message) {
-        if (config.relayChat) {
-            sender.sendPlayerChat(name, uuid, message);
+        if (!config.relayChat) {
+            return;
         }
+        String blocked = filter.firstMatch(message);
+        if (blocked != null) {
+            // Logged, not silently dropped: a moderator needs to know it happened, and the
+            // player still said it in-game where others saw it.
+            LOGGER.info("Blocked chat from {} (matched \"{}\") — not relayed to Discord", name, blocked);
+            return;
+        }
+        sender.sendPlayerChat(name, uuid, message);
     }
 
     public void playerDied(String deathMessage, String name, String uuid) {
@@ -220,6 +272,18 @@ public final class EnderLinkCore {
         // The management channel is for commands, not chat — relaying it into the game would
         // put admin chatter in front of every player.
         if (management) {
+            return;
+        }
+
+        String blocked = filter.firstMatch(content);
+        if (blocked != null) {
+            LOGGER.info("Blocked Discord message from {} (matched \"{}\") — not relayed in-game",
+                    message.authorName(), blocked);
+            return;
+        }
+
+        if (!allowInbound(message.authorId())) {
+            LOGGER.info("Rate limited Discord messages from {}", message.authorName());
             return;
         }
 

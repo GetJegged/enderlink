@@ -95,6 +95,20 @@ Management messages never reach in-game chat, and unprefixed text never executes
 NeoForge capture real command output; Paper confirms execution only, as Bukkit gives no
 supported way to intercept it.
 
+**Content filter** (`blocked-words`) — blocks matching messages **in both directions**. That
+matters: in-game chat bypasses Discord's AutoMod entirely (webhook posts aren't scanned), and
+Discord messages bypass every in-game chat plugin, so a bridge is a hole in your moderation
+unless both sides are covered.
+
+Matching ignores case, spacing, punctuation and digit-for-letter swaps — `b a d w o r d` and
+`b4dw0rd` are both caught, because those are the first things anyone tries. **The trade-off is
+that a word also matches inside longer words**, so pick the list deliberately. Blocked messages
+are logged with the word that matched, so moderators can see what happened.
+
+**Flood control** (`inbound-messages-per-minute`, default 20) — caps how much one Discord user
+can push into the game. Outbound needs no limit: it already goes through one ordered queue that
+respects Discord's rate limits.
+
 **Crash detection** (`relay-crashes`) — posts 💥 when the JVM exits without a clean shutdown.
 Uses a shutdown hook, so it catches OOM kills too, not just logged exceptions.
 
@@ -121,6 +135,8 @@ Uses a shutdown hook, so it catches OOM kills too, not just logged exceptions.
 | `avatar-url` | mc-heads.net | `{uuid}` and `{name}` are substituted. |
 | `discord-chat-format` | `§9[Discord] §b{name}§r: {message}` | How Discord looks in-game. |
 | `max-message-length` | `256` | Truncation for inbound messages. |
+| `blocked-words` | `[]` | Blocks matching messages both ways. Empty = off. |
+| `inbound-messages-per-minute` | `20` | Per-user inbound cap. `0` = off. |
 | `command-prefix` | `"!"` | |
 | `enable-list-command` | `true` | |
 | `discord-invite` | `""` | Shown by `/discord`. |
@@ -145,8 +161,8 @@ Uses a shutdown hook, so it catches OOM kills too, not just logged exceptions.
 - **Rate limits respected**; dropped gateway connections resume with backoff.
 - **Fails loudly** — a bad token or missing intent names the exact portal setting to fix.
 
-**Limitations:** no inbound flood control · one channel · Spigot unsupported (Paper's chat and
-advancement APIs diverged too far for one jar).
+**Limitations:** one channel · Spigot unsupported (Paper's chat and advancement APIs diverged
+too far for one jar).
 
 ---
 

@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Everything the operator can tune, read from {@code config/enderlink.json}.
@@ -158,6 +160,24 @@ public final class BridgeConfig {
      */
     @SerializedName("relay-crashes")
     public boolean relayCrashes = true;
+
+    // ---- Moderation ------------------------------------------------------------------------------
+
+    /**
+     * Words that stop a message crossing the bridge, in either direction. Empty disables it.
+     *
+     * <p>Matching ignores case, spacing, punctuation and digit-for-letter swaps, which also means
+     * a word matches inside longer words — choose the list accordingly.
+     */
+    @SerializedName("blocked-words")
+    public List<String> blockedWords = new ArrayList<>();
+
+    /**
+     * Most messages one Discord user may send into the game per minute. Zero disables the limit.
+     * Guards against a Discord member spamming every player on the server.
+     */
+    @SerializedName("inbound-messages-per-minute")
+    public int inboundMessagesPerMinute = 20;
 
     // ---- Derived helpers -----------------------------------------------------------------
 
