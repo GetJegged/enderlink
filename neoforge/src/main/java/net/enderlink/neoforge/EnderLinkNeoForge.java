@@ -241,29 +241,33 @@ public final class EnderLinkNeoForge implements BridgePlatform {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
-        String invite = core.config().discordInvite;
 
-        if (!invite.isBlank()) {
-            dispatcher.register(Commands.literal("discord").executes(context -> {
-                context.getSource().sendSuccess(
-                        () -> Component.literal("§9Join us on Discord: §b" + invite), false);
-                return 1;
-            }));
-        }
+        // Always registered, explaining themselves when switched off — see the Fabric module for
+        // why omitting them silently was the wrong call.
+        dispatcher.register(Commands.literal("discord").executes(context -> {
+            String invite = core.config().discordInvite;
+            context.getSource().sendSuccess(() -> Component.literal(invite.isBlank()
+                    ? "§cNo Discord invite is configured (set `discord-invite`)."
+                    : "§9Join us on Discord: §b" + invite), false);
+            return 1;
+        }));
 
-        if (core.linkingEnabled()) {
-            dispatcher.register(Commands.literal("link").executes(context -> {
-                ServerPlayer player = context.getSource().getPlayerOrException();
-                String code = core.createLinkCode(player.getUUID().toString(),
-                        player.getScoreboardName());
-                // Sent only to the player who ran it — a code visible in public chat could be
-                // redeemed by whoever reads it first.
+        dispatcher.register(Commands.literal("link").executes(context -> {
+            ServerPlayer player = context.getSource().getPlayerOrException();
+            if (!core.linkingEnabled()) {
                 player.sendSystemMessage(Component.literal(
-                        "§9Send §b" + core.config().commandPrefix + "link " + code
-                                + "§9 in Discord to link your account."));
-                return 1;
-            }));
-        }
+                        "§cAccount linking is disabled (set `enable-linking`)."));
+                return 0;
+            }
+            String code = core.createLinkCode(player.getUUID().toString(),
+                    player.getScoreboardName());
+            // Sent only to the player who ran it — a code visible in public chat could be
+            // redeemed by whoever reads it first.
+            player.sendSystemMessage(Component.literal(
+                    "§9Send §b" + core.config().commandPrefix + "link " + code
+                            + "§9 in Discord to link your account."));
+            return 1;
+        }));
     }
 
     /** Matches vanilla's own phrasing for each advancement frame type. */

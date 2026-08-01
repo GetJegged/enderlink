@@ -219,29 +219,35 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
      * no invite is configured, so the command never exists to advertise a blank link.
      */
     private void registerCommands() {
+        // Both commands always register and explain themselves when switched off. Omitting them
+        // entirely — which is what this used to do — means an operator sees "Unknown command"
+        // with no hint that a config key controls it. Paper always registers them (plugin.yml
+        // does not do conditionals), so this also keeps the three platforms behaving alike.
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
-            String invite = core.config().discordInvite;
-            if (!invite.isBlank()) {
-                dispatcher.register(Commands.literal("discord").executes(context -> {
-                    context.getSource().sendSuccess(
-                            () -> Component.literal("§9Join us on Discord: §b" + invite), false);
-                    return 1;
-                }));
-            }
+            dispatcher.register(Commands.literal("discord").executes(context -> {
+                String invite = core.config().discordInvite;
+                context.getSource().sendSuccess(() -> Component.literal(invite.isBlank()
+                        ? "§cNo Discord invite is configured (set `discord-invite`)."
+                        : "§9Join us on Discord: §b" + invite), false);
+                return 1;
+            }));
 
-            if (core.linkingEnabled()) {
-                dispatcher.register(Commands.literal("link").executes(context -> {
-                    ServerPlayer player = context.getSource().getPlayerOrException();
-                    String code = core.createLinkCode(player.getUUID().toString(),
-                            player.getScoreboardName());
-                    // Sent only to the player who ran it — a code visible in public chat could be
-                    // redeemed by whoever reads it first.
+            dispatcher.register(Commands.literal("link").executes(context -> {
+                ServerPlayer player = context.getSource().getPlayerOrException();
+                if (!core.linkingEnabled()) {
                     player.sendSystemMessage(Component.literal(
-                            "§9Send §b" + core.config().commandPrefix + "link " + code
-                                    + "§9 in Discord to link your account."));
-                    return 1;
-                }));
-            }
+                            "§cAccount linking is disabled (set `enable-linking`)."));
+                    return 0;
+                }
+                String code = core.createLinkCode(player.getUUID().toString(),
+                        player.getScoreboardName());
+                // Sent only to the player who ran it — a code visible in public chat could be
+                // redeemed by whoever reads it first.
+                player.sendSystemMessage(Component.literal(
+                        "§9Send §b" + core.config().commandPrefix + "link " + code
+                                + "§9 in Discord to link your account."));
+                return 1;
+            }));
         });
     }
 
