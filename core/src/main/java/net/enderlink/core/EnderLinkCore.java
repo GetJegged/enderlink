@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * The bridge itself, with no server API anywhere in it.
@@ -91,6 +93,7 @@ public final class EnderLinkCore {
         if (config.relayServerStatus) {
             sender.sendServerStarted();
         }
+        updatePresence(null, null);
     }
 
     /** Call at the start of a clean shutdown. */
@@ -159,17 +162,14 @@ public final class EnderLinkCore {
         if (config.relayJoinLeave) {
             sender.sendJoin(name, uuid);
         }
-        updatePresence(null);
+        updatePresence(name, null);
     }
 
     public void playerLeft(String name, String uuid) {
         if (config.relayJoinLeave) {
             sender.sendLeave(name, uuid);
         }
-        // Excluding the leaver by name is exact on every platform. The alternative — assuming the
-        // quit event fires before or after the player list shrinks — differs between Fabric,
-        // NeoForge and Bukkit, and guessing wrong leaves the count permanently off by one.
-        updatePresence(name);
+        updatePresence(null, name);
     }
 
     public void playerChat(String name, String uuid, String message) {
@@ -383,17 +383,29 @@ public final class EnderLinkCore {
     /**
      * Publishes the player count as the bot's activity.
      *
-     * @param leaving name to discount, or null — see {@link #playerLeft}
+     * <p>Neither join nor quit events can be trusted to line up with the player list. Fabric
+     * fires its join event from partway through {@code placeNewPlayer}, <em>before</em> the
+     * player is added to the list, so a plain count reads one too low — the bot sat at "0/20"
+     * with someone online. Quit events have the opposite ambiguity, and the three platforms do
+     * not agree with each other.
+     *
+     * <p>So rather than trust the list or guess an offset, the player the event is about is
+     * forced in or out by name. That is correct on every platform and under either ordering.
      */
-    private void updatePresence(String leaving) {
+    private void updatePresence(String ensureIncluded, String ensureExcluded) {
         if (gateway == null || !config.showPlayerCount) {
             return;
         }
         platform.runOnMainThread(() -> {
-            long online = platform.onlinePlayerNames().stream()
-                    .filter(name -> leaving == null || !name.equalsIgnoreCase(leaving))
-                    .count();
-            gateway.updatePresence((int) online, platform.maxPlayers());
+            Set<String> online = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            online.addAll(platform.onlinePlayerNames());
+            if (ensureExcluded != null) {
+                online.remove(ensureExcluded);
+            }
+            if (ensureIncluded != null) {
+                online.add(ensureIncluded);
+            }
+            gateway.updatePresence(online.size(), platform.maxPlayers());
         });
     }
 
