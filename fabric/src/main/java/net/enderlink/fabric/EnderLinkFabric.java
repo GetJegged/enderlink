@@ -204,8 +204,11 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer player) {
-                // Reuse the game's own wording so Discord reads exactly like in-game chat did.
-                core.playerDied(player.getCombatTracker().getDeathMessage().getString(),
+                // Ask the DamageSource, NOT the combat tracker. Vanilla reads the tracker from
+                // inside die(); this event fires at the end of die(), by which point the tracker
+                // has been reset and returns the bare "<player> died" fallback. That produced a
+                // Discord message that disagreed with the one players saw in chat.
+                core.playerDied(damageSource.getLocalizedDeathMessage(player).getString(),
                         player.getScoreboardName(), player.getUUID().toString());
             }
         });

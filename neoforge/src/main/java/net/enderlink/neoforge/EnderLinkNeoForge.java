@@ -215,8 +215,9 @@ public final class EnderLinkNeoForge implements BridgePlatform {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            // Reuse the game's own wording so Discord reads exactly like in-game chat did.
-            core.playerDied(player.getCombatTracker().getDeathMessage().getString(),
+            // Ask the DamageSource, not the combat tracker — see the Fabric module for why the
+            // tracker returns a bare "<player> died" by the time a death event fires.
+            core.playerDied(event.getSource().getLocalizedDeathMessage(player).getString(),
                     player.getScoreboardName(), player.getUUID().toString());
         }
     }

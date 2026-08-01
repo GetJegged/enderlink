@@ -17,6 +17,13 @@ import java.util.Locale;
 public final class EnderLinkCore {
     public static final Logger LOGGER = LoggerFactory.getLogger("EnderLink");
 
+    /**
+     * How long the crash hook waits for a clean shutdown to be signalled before concluding the
+     * server really did die. Long enough for Minecraft's own shutdown hook to reach
+     * SERVER_STOPPING on a SIGTERM; short enough not to fight a container's kill timeout.
+     */
+    private static final long CLEAN_SHUTDOWN_GRACE_MILLIS = 10_000L;
+
     private final BridgePlatform platform;
     private final BridgeConfig config;
     private final DiscordSender sender;
@@ -110,7 +117,30 @@ public final class EnderLinkCore {
             if (cleanShutdown || !config.relayCrashes || !config.outboundEnabled()) {
                 return;
             }
-            LOGGER.warn("Server exiting without a clean shutdown — reporting a crash to Discord");
+
+            // Do NOT declare a crash yet. A SIGTERM — which is how systemd, docker and every
+            // hosting panel stop a server — runs this hook and Minecraft's own shutdown hook at
+            // the same time, so `cleanShutdown` is simply not set yet. Checking immediately made
+            // every ordinary stop post a false "server crashed", which is worse than useless:
+            // an alert that cries wolf on every restart gets muted, and then the real crash is
+            // missed too.
+            //
+            // So wait for the clean-shutdown signal and bail the moment it arrives. A genuine
+            // crash never sets it, so it still gets reported — just a few seconds later.
+            long deadline = System.currentTimeMillis() + CLEAN_SHUTDOWN_GRACE_MILLIS;
+            while (!cleanShutdown && System.currentTimeMillis() < deadline) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+
+            if (cleanShutdown) {
+                return;
+            }
+            LOGGER.warn("Server exited without a clean shutdown — reporting a crash to Discord");
             sender.sendCrashBlocking();
         }, "enderlink-crash-hook"));
     }
