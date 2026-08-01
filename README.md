@@ -17,17 +17,21 @@ changes.
 ## Why this exists
 
 Minecraft 26.1 was the first release shipped **unobfuscated**, and it moved enough API surface
-that essentially every Discord bridge mod stopped working. Most are still pinned to 1.21.
-Meanwhile the usual recommendation — DiscordSRV — is a Bukkit/Spigot/Paper plugin and has never
-run on Fabric at all.
+that most Discord bridge mods stopped working. Fabricord, Fabric2Discord and Fabric-Discord-Link
+are all still pinned to 1.21 or older. DiscordSRV — the usual recommendation — is a
+Bukkit/Spigot/Paper plugin and has never run on Fabric at all.
 
-So if you run a modern Fabric server, there hasn't been a working option. EnderLink is that
-option.
+**Discord Integration** has ported to 26.x and is the mature, full-featured option: account
+linking, whitelist integration, Dynmap, a developer API, five loaders. If you want all that,
+use it — it's good software.
 
-It also has **no external dependencies**. No JDA, nothing shaded. Discord is reached with the
-JDK's own HTTP and WebSocket clients, and JSON is parsed with the Gson that Minecraft already
-ships. The jar is ~29 KB, and there's no Discord library release cycle to keep in step with
-Minecraft's.
+EnderLink is the small one. It does chat, joins, deaths, advancements and mentions, and nothing
+else. **No external dependencies** — no JDA, nothing shaded. Discord is reached with the JDK's
+own HTTP and WebSocket clients, and JSON is parsed with the Gson that Minecraft already ships.
+The result is a ~30 KB jar with one config file and no database, and no Discord library release
+cycle to keep in step with Minecraft's.
+
+Pick it if you want a bridge you can read end to end in an afternoon.
 
 ---
 
@@ -59,6 +63,27 @@ In-game, Discord messages appear as:
 
 Because the "online" embed only posts once the server is genuinely accepting players, the
 channel doubles as an uptime log — no need to launch the game to find out if the server is up.
+
+### Mentions
+
+Typing `@blake` or `@admins` in Minecraft chat pings that Discord user or role for real.
+
+Only names EnderLink has actually resolved are ever pinged, and `@everyone` stays impossible no
+matter what a player types. Roles are read once over the API, so they work immediately. Users
+are learned as they speak in the channel — which means someone must have talked (or been
+mentioned) once before they can be pinged from in-game. That's a deliberate trade: listing every
+member of a server requires Discord's privileged `GUILD_MEMBERS` intent, and this avoids asking
+for it.
+
+### Commands
+
+| Where | Command | Does |
+|---|---|---|
+| Discord | `!list` | Replies with who's online and the player count. |
+| In-game | `/discord` | Prints your invite link. Only exists if `discord-invite` is set. |
+
+The bot's status also shows `N/M online`, updated as players come and go — visible in the
+member list without opening the channel.
 
 ---
 
@@ -131,6 +156,11 @@ Restart. You should see:
 | `avatar-url` | `https://mc-heads.net/avatar/{uuid}/64` | Player skin head. `{uuid}` and `{name}` are substituted. |
 | `discord-chat-format` | `§9[Discord] §b{name}§r: {message}` | How Discord messages look in-game. |
 | `max-message-length` | `256` | Longer Discord messages are truncated in-game. |
+| `relay-mentions` | `true` | `@name` typed in Minecraft becomes a real Discord ping. |
+| `command-prefix` | `"!"` | Prefix for commands typed in Discord. |
+| `enable-list-command` | `true` | Answer `!list` with who's online. |
+| `discord-invite` | `""` | Invite link shown by `/discord` in-game. Blank hides the command. |
+| `show-player-count` | `true` | Bot activity shows "N/M online". |
 
 > **Note:** the default avatar URL calls **mc-heads.net**, a third-party skin renderer. Discord
 > fetches it, not your server. Point `avatar-url` elsewhere or blank it if you'd rather not

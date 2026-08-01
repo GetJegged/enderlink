@@ -11,6 +11,15 @@ First release. Two-way Discord bridge for Minecraft 26.2 on Fabric.
 - Advancements, matching vanilla's task / goal / challenge phrasing
 - Server online and shutting down
 
+**Mentions and commands**
+- `@name` and `@role` typed in Minecraft become real Discord pings, allow-listed by resolved id
+  so `@everyone` remains impossible
+- Roles are read once over the REST API; users are learned from channel activity, which avoids
+  requiring the privileged `GUILD_MEMBERS` intent
+- `!list` in Discord replies with who is online
+- `/discord` in-game prints the configured invite link
+- Bot activity shows the live player count
+
 **Discord → Minecraft**
 - Channel messages relayed into in-game chat
 - Server nicknames preferred over display names

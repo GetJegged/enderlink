@@ -10,9 +10,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Minecraft -> Discord. Posts to a channel webhook.
@@ -31,9 +35,23 @@ public final class DiscordSender {
     private static final int COLOR_ADVANCEMENT = 0xFAA61A;
     private static final int COLOR_STOP = 0x747F8D;
 
+    /** {@code @name} typed in Minecraft. Discord names are alphanumeric plus _ and . */
+    private static final Pattern MENTION = Pattern.compile("@([A-Za-z0-9_.]{2,32})");
+
+    /** Looks a Minecraft-typed name up against Discord users and roles. */
+    @FunctionalInterface
+    public interface MentionResolver {
+        String userId(String name);
+
+        default String roleId(String name) {
+            return null;
+        }
+    }
+
     private final BridgeConfig config;
     private final HttpClient http;
     private final ExecutorService queue;
+    private volatile MentionResolver mentionResolver;
 
     public DiscordSender(BridgeConfig config) {
         this.config = config;
@@ -41,10 +59,19 @@ public final class DiscordSender {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.queue = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "discord-bridge-sender");
+            Thread t = new Thread(r, "enderlink-sender");
             t.setDaemon(true);
             return t;
         });
+    }
+
+    /**
+     * Supplies the name lookup used for outbound mentions. Set only when the inbound half is
+     * configured — without a gateway there is nothing to resolve names against, and mentions
+     * fall back to plain text.
+     */
+    public void setMentionResolver(MentionResolver resolver) {
+        this.mentionResolver = resolver;
     }
 
     // ---- Public API (server thread) -------------------------------------------------------
@@ -52,7 +79,29 @@ public final class DiscordSender {
     /** A player's in-game chat, wearing their own name and skin in Discord. */
     public void sendPlayerChat(String playerName, String uuid, String message) {
         JsonObject payload = base(playerName, avatarFor(playerName, uuid));
-        payload.addProperty("content", truncate(escapeMarkdown(message), DISCORD_CONTENT_LIMIT));
+
+        List<String> users = new ArrayList<>();
+        List<String> roles = new ArrayList<>();
+        payload.addProperty("content", truncate(renderContent(message, users, roles),
+                DISCORD_CONTENT_LIMIT));
+
+        // Replace the block-everything default with an explicit allow-list. Listing ids is what
+        // makes a ping safe: only names the mod actually resolved can notify anyone, and
+        // @everyone stays impossible because "parse" is still empty.
+        if (!users.isEmpty() || !roles.isEmpty()) {
+            JsonObject allowed = new JsonObject();
+            allowed.add("parse", new JsonArray());
+            allowed.add("users", toJsonArray(users));
+            allowed.add("roles", toJsonArray(roles));
+            payload.add("allowed_mentions", allowed);
+        }
+        enqueue(payload);
+    }
+
+    /** A plain line from the mod itself — used for command replies such as {@code !list}. */
+    public void sendPlain(String text) {
+        JsonObject payload = base(config.serverName, null);
+        payload.addProperty("content", truncate(text, DISCORD_CONTENT_LIMIT));
         enqueue(payload);
     }
 
@@ -246,6 +295,59 @@ public final class DiscordSender {
     }
 
     // ---- Text hygiene ---------------------------------------------------------------------
+
+    /**
+     * Escapes the message for Discord while turning {@code @name} into a real mention where the
+     * name resolves. Mentions are substituted on the raw text and the literal runs escaped
+     * around them — escaping first would put a backslash inside names containing underscores
+     * and stop them matching at all.
+     */
+    private String renderContent(String message, List<String> users, List<String> roles) {
+        MentionResolver resolver = this.mentionResolver;
+        if (resolver == null || !config.relayMentions) {
+            return escapeMarkdown(message);
+        }
+
+        StringBuilder out = new StringBuilder(message.length() + 16);
+        Matcher matcher = MENTION.matcher(message);
+        int last = 0;
+
+        while (matcher.find()) {
+            out.append(escapeMarkdown(message.substring(last, matcher.start())));
+
+            // Trailing dots are almost always sentence punctuation rather than part of the
+            // name, so try without them and hand the remainder back as literal text.
+            String raw = matcher.group(1);
+            String name = raw;
+            while (name.endsWith(".")) {
+                name = name.substring(0, name.length() - 1);
+            }
+            String trailing = raw.substring(name.length());
+
+            String userId = name.isEmpty() ? null : resolver.userId(name);
+            String roleId = (userId == null && !name.isEmpty()) ? resolver.roleId(name) : null;
+
+            if (userId != null) {
+                out.append("<@").append(userId).append('>').append(escapeMarkdown(trailing));
+                users.add(userId);
+            } else if (roleId != null) {
+                out.append("<@&").append(roleId).append('>').append(escapeMarkdown(trailing));
+                roles.add(roleId);
+            } else {
+                out.append(escapeMarkdown(matcher.group(0)));
+            }
+            last = matcher.end();
+        }
+
+        out.append(escapeMarkdown(message.substring(last)));
+        return out.toString();
+    }
+
+    private static JsonArray toJsonArray(List<String> values) {
+        JsonArray array = new JsonArray();
+        values.forEach(array::add);
+        return array;
+    }
 
     /**
      * Stops in-game text from being read as Discord markdown — otherwise a player typing

@@ -1,6 +1,7 @@
 package net.enderlink;
 
 import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
@@ -8,11 +9,15 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementType;
 import net.minecraft.advancements.DisplayInfo;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Two-way bridge between a Fabric server and one Discord channel.
@@ -47,13 +52,27 @@ public final class EnderLink implements DedicatedServerModInitializer {
 
         if (config.inboundEnabled()) {
             gateway = new DiscordGateway(config, this::onDiscordMessage);
+            // Outbound mentions need the gateway's learned name->id map, so this is only wired
+            // up when the inbound half exists.
+            sender.setMentionResolver(new DiscordSender.MentionResolver() {
+                @Override
+                public String userId(String name) {
+                    return gateway.lookupUser(name);
+                }
+
+                @Override
+                public String roleId(String name) {
+                    return gateway.lookupRole(name);
+                }
+            });
         }
 
         registerLifecycleEvents();
         registerPlayerEvents();
+        registerCommands();
 
         if (!config.outboundEnabled() && !config.inboundEnabled()) {
-            LOGGER.warn("Discord bridge is idle — fill in config/enderlink.json and restart. "
+            LOGGER.warn("EnderLink is idle — fill in config/enderlink.json and restart. "
                     + "Outbound needs `webhook-url`; inbound needs `bot-token` and `channel-id`.");
         }
     }
@@ -66,7 +85,7 @@ public final class EnderLink implements DedicatedServerModInitializer {
 
             if (gateway != null) {
                 gateway.start();
-                LOGGER.info("Discord bridge active ({})", gateway.describe());
+                LOGGER.info("EnderLink active ({})", gateway.describe());
             }
             if (config.relayServerStatus) {
                 sender.sendServerStarted();
@@ -96,6 +115,7 @@ public final class EnderLink implements DedicatedServerModInitializer {
                 ServerPlayer player = handler.player;
                 sender.sendJoin(player.getScoreboardName(), player.getUUID().toString());
             }
+            updatePresence(joinedServer, 0);
         });
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, disconnectedServer) -> {
@@ -103,6 +123,8 @@ public final class EnderLink implements DedicatedServerModInitializer {
                 ServerPlayer player = handler.player;
                 sender.sendLeave(player.getScoreboardName(), player.getUUID().toString());
             }
+            // DISCONNECT fires before the player list has actually shrunk, so discount them.
+            updatePresence(disconnectedServer, -1);
         });
 
         ServerMessageEvents.CHAT_MESSAGE.register((message, chatSender, params) -> {
@@ -121,6 +143,24 @@ public final class EnderLink implements DedicatedServerModInitializer {
             // Reuse the game's own wording so Discord reads exactly like in-game chat did.
             String deathMessage = player.getCombatTracker().getDeathMessage().getString();
             sender.sendDeath(deathMessage, player.getScoreboardName(), player.getUUID().toString());
+        });
+    }
+
+    /**
+     * Registers {@code /discord}, which prints the server's invite link. Skipped entirely when
+     * no invite is configured, so the command never exists to advertise a blank link.
+     */
+    private void registerCommands() {
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> {
+            if (config.discordInvite.isBlank()) {
+                return;
+            }
+            dispatcher.register(Commands.literal("discord").executes(context -> {
+                context.getSource().sendSuccess(
+                        () -> Component.literal("§9Join us on Discord: §b" + config.discordInvite),
+                        false);
+                return 1;
+            }));
         });
     }
 
@@ -165,6 +205,13 @@ public final class EnderLink implements DedicatedServerModInitializer {
             return;
         }
 
+        // Commands are answered in Discord rather than echoed into the game.
+        if (config.enableListCommand && !config.commandPrefix.isBlank()
+                && content.strip().equalsIgnoreCase(config.commandPrefix + "list")) {
+            replyWithPlayerList(currentServer);
+            return;
+        }
+
         String safeName = sanitize(authorName);
         String safeContent = DiscordSender.truncate(sanitize(content), config.maxMessageLength);
 
@@ -172,6 +219,38 @@ public final class EnderLink implements DedicatedServerModInitializer {
 
         currentServer.execute(() ->
                 currentServer.getPlayerList().broadcastSystemMessage(Component.literal(line), false));
+    }
+
+    /** Answers {@code !list} in Discord with who is online. */
+    private void replyWithPlayerList(MinecraftServer currentServer) {
+        // The player list may only be read on the server thread.
+        currentServer.execute(() -> {
+            List<ServerPlayer> players = currentServer.getPlayerList().getPlayers();
+            if (players.isEmpty()) {
+                sender.sendPlain("Nobody is online right now.");
+                return;
+            }
+            String names = players.stream()
+                    .map(ServerPlayer::getScoreboardName)
+                    .sorted(String.CASE_INSENSITIVE_ORDER)
+                    .collect(Collectors.joining(", "));
+            sender.sendPlain("**" + players.size() + "/"
+                    + currentServer.getPlayerList().getMaxPlayers() + " online:** " + names);
+        });
+    }
+
+    /**
+     * Publishes the player count as the bot's activity. {@code delta} adjusts for events that
+     * fire either side of the player list actually changing.
+     */
+    private void updatePresence(MinecraftServer currentServer, int delta) {
+        if (gateway == null || !config.showPlayerCount || currentServer == null) {
+            return;
+        }
+        currentServer.execute(() -> {
+            int online = Math.max(0, currentServer.getPlayerList().getPlayers().size() + delta);
+            gateway.updatePresence(online, currentServer.getPlayerList().getMaxPlayers());
+        });
     }
 
     /**

@@ -90,6 +90,36 @@ public final class BridgeConfig {
     @SerializedName("max-message-length")
     public int maxMessageLength = 256;
 
+    // ---- Mentions ---------------------------------------------------------------------------
+
+    /**
+     * Turn {@code @name} typed in Minecraft into a real Discord ping. Only names the mod has
+     * actually resolved are ever pinged — {@code @everyone} stays blocked regardless.
+     */
+    @SerializedName("relay-mentions")
+    public boolean relayMentions = true;
+
+    // ---- Commands ---------------------------------------------------------------------------
+
+    /** Prefix for commands typed in the Discord channel, e.g. {@code !list}. */
+    @SerializedName("command-prefix")
+    public String commandPrefix = "!";
+
+    /** Answer {@code !list} in Discord with who is currently online. */
+    @SerializedName("enable-list-command")
+    public boolean enableListCommand = true;
+
+    /**
+     * Shown in-game by {@code /discord}. Blank disables the command, so a server without an
+     * invite link does not advertise a broken one.
+     */
+    @SerializedName("discord-invite")
+    public String discordInvite = "";
+
+    /** Show "N/M online" as the bot's activity, updated as players come and go. */
+    @SerializedName("show-player-count")
+    public boolean showPlayerCount = true;
+
     // ---- Derived helpers -----------------------------------------------------------------
 
     public boolean outboundEnabled() {

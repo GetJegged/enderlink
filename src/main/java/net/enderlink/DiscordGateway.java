@@ -1,16 +1,21 @@
 package net.enderlink;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -81,6 +86,14 @@ public final class DiscordGateway {
     // Gateway frames can be split across several onText callbacks; reassemble here.
     private final StringBuilder textBuffer = new StringBuilder();
 
+    // Name -> id, so "@blake" typed in Minecraft can become a real ping. Users are learned from
+    // messages as they arrive rather than fetched, because listing guild members needs the
+    // privileged GUILD_MEMBERS intent and this does not. The trade-off is that a user has to
+    // have spoken (or been mentioned) once before they can be pinged from in-game.
+    private final Map<String, String> userIds = new ConcurrentHashMap<>();
+    private final Map<String, String> roleIds = new ConcurrentHashMap<>();
+    private volatile String guildId;
+
     // WebSocket.sendText must not be called again until the previous send completes, and we
     // send from two threads (heartbeats and handshakes), so all writes go through one chain.
     private final Object sendLock = new Object();
@@ -93,7 +106,7 @@ public final class DiscordGateway {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "discord-bridge-gateway");
+            Thread t = new Thread(r, "enderlink-gateway");
             t.setDaemon(true);
             return t;
         });
@@ -178,7 +191,7 @@ public final class DiscordGateway {
     }
 
     private void fatal(String message) {
-        EnderLink.LOGGER.error("Discord bridge (inbound) disabled: {}", message);
+        EnderLink.LOGGER.error("EnderLink inbound disabled: {}", message);
         running.set(false);
         cancelHeartbeat();
     }
@@ -249,8 +262,8 @@ public final class DiscordGateway {
     private void sendIdentify() {
         JsonObject properties = new JsonObject();
         properties.addProperty("os", System.getProperty("os.name", "linux"));
-        properties.addProperty("browser", "discord-bridge");
-        properties.addProperty("device", "discord-bridge");
+        properties.addProperty("browser", "enderlink");
+        properties.addProperty("device", "enderlink");
 
         JsonObject d = new JsonObject();
         d.addProperty("token", config.botToken);
@@ -382,6 +395,8 @@ public final class DiscordGateway {
             return;
         }
 
+        learnNames(d, author);
+
         String content = optString(d, "content");
         content = resolveMentions(content, d);
 
@@ -395,6 +410,124 @@ public final class DiscordGateway {
         }
 
         handler.onDiscordMessage(displayNameOf(d, author), content);
+    }
+
+    /**
+     * Records every name/id pair visible in a message so it can be pinged from Minecraft later.
+     * The first message also reveals the guild, which is when roles get fetched.
+     */
+    private void learnNames(JsonObject message, JsonObject author) {
+        remember(author);
+        if (message.has("member") && message.get("member").isJsonObject()) {
+            String nick = optString(message.getAsJsonObject("member"), "nick");
+            String id = optString(author, "id");
+            if (!nick.isBlank() && !id.isBlank()) {
+                userIds.put(nick.toLowerCase(Locale.ROOT), id);
+            }
+        }
+        if (message.has("mentions") && message.get("mentions").isJsonArray()) {
+            for (JsonElement element : message.getAsJsonArray("mentions")) {
+                if (element.isJsonObject()) {
+                    remember(element.getAsJsonObject());
+                }
+            }
+        }
+
+        String gid = optString(message, "guild_id");
+        if (!gid.isBlank() && guildId == null) {
+            guildId = gid;
+            fetchRoles(gid);
+        }
+    }
+
+    private void remember(JsonObject user) {
+        String id = optString(user, "id");
+        if (id.isBlank()) {
+            return;
+        }
+        for (String key : new String[] {"username", "global_name"}) {
+            String name = optString(user, key);
+            if (!name.isBlank()) {
+                userIds.put(name.toLowerCase(Locale.ROOT), id);
+            }
+        }
+    }
+
+    /**
+     * Roles, unlike members, can be listed over REST without a privileged intent — so role
+     * pings work for every role immediately rather than only after someone uses one.
+     */
+    private void fetchRoles(String gid) {
+        try {
+            scheduler.execute(() -> {
+                try {
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("https://discord.com/api/v10/guilds/" + gid + "/roles"))
+                            .timeout(Duration.ofSeconds(15))
+                            .header("Authorization", "Bot " + config.botToken)
+                            .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                            .GET()
+                            .build();
+                    HttpResponse<String> response =
+                            http.send(request, HttpResponse.BodyHandlers.ofString());
+                    if (response.statusCode() != 200) {
+                        EnderLink.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
+                                + "from in-game will not work", response.statusCode());
+                        return;
+                    }
+                    for (JsonElement element : JsonParser.parseString(response.body()).getAsJsonArray()) {
+                        JsonObject role = element.getAsJsonObject();
+                        String name = optString(role, "name");
+                        String id = optString(role, "id");
+                        if (!name.isBlank() && !id.isBlank() && !"@everyone".equals(name)) {
+                            roleIds.put(name.toLowerCase(Locale.ROOT), id);
+                        }
+                    }
+                    EnderLink.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
+                } catch (Exception e) {
+                    EnderLink.LOGGER.warn("Could not list Discord roles: {}", e.getMessage());
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            // Shutting down.
+        }
+    }
+
+    /** Discord user id for a name typed in Minecraft, or null if never seen. */
+    public String lookupUser(String name) {
+        return userIds.get(name.toLowerCase(Locale.ROOT));
+    }
+
+    /** Discord role id for a name typed in Minecraft, or null. */
+    public String lookupRole(String name) {
+        return roleIds.get(name.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Sets the bot's activity to the current player count. This is a gateway op, not a REST
+     * call, so it is not rate limited the way editing a channel topic would be.
+     */
+    public void updatePresence(int online, int max) {
+        if (socket == null) {
+            return;
+        }
+        JsonObject activity = new JsonObject();
+        activity.addProperty("name", online + "/" + max + " online");
+        activity.addProperty("type", 0);        // "Playing …"
+
+        JsonArray activities = new JsonArray();
+        activities.add(activity);
+
+        JsonObject d = new JsonObject();
+        d.add("since", com.google.gson.JsonNull.INSTANCE);
+        d.add("activities", activities);
+        d.addProperty("status", "online");
+        d.addProperty("afk", false);
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("op", 3);
+        payload.add("d", d);
+        send(payload);
     }
 
     /** Server nickname if they have one, else their Discord display name, else the username. */
