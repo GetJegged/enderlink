@@ -9,9 +9,17 @@ pluginManagement {
     }
 }
 
+// Lets Gradle fetch a JDK it does not have locally. NeoForge's ModDevGradle runs some of its
+// tooling tasks (downloadAssets) on a Java 21 toolchain regardless of what the modules compile
+// with, so `./gradlew :neoforge:runServer` otherwise fails on any machine without a JDK 21.
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'enderlink'
 
 // core holds every line that does not touch a server API; the rest are thin platform adapters.
 include 'core'
 include 'fabric'
+include 'neoforge'
 include 'paper'

@@ -153,8 +153,26 @@ public final class DiscordSender {
         embeds.add(embed);
         payload.add("embeds", embeds);
 
-        if (config.outboundEnabled()) {
-            post(payload.toString());
+        if (!config.outboundEnabled()) {
+            return;
+        }
+
+        // One short attempt, NOT the usual retry loop. This runs inside a JVM shutdown hook, and
+        // post()'s three tries with backoff and 15s timeouts could hold the process open for the
+        // better part of a minute — long enough for a restart script to look hung, or for a
+        // supervisor to SIGKILL us anyway.
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(config.webhookUrl))
+                    .timeout(Duration.ofSeconds(4))
+                    .header("Content-Type", "application/json")
+                    .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload.toString(), StandardCharsets.UTF_8))
+                    .build();
+            http.send(request, HttpResponse.BodyHandlers.discarding());
+        } catch (Exception e) {
+            // Nothing useful to do — the JVM is on its way out.
+            EnderLinkCore.LOGGER.warn("Could not report the crash to Discord: {}", e.getMessage());
         }
     }
 

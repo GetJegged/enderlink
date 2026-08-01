@@ -129,19 +129,17 @@ public final class EnderLinkCore {
         if (config.relayJoinLeave) {
             sender.sendJoin(name, uuid);
         }
-        updatePresence(0);
+        updatePresence(null);
     }
 
-    /**
-     * @param stillListed whether the leaving player is still counted by
-     *     {@link BridgePlatform#onlinePlayerNames()} — platforms differ on whether their quit
-     *     event fires before or after the player list shrinks.
-     */
-    public void playerLeft(String name, String uuid, boolean stillListed) {
+    public void playerLeft(String name, String uuid) {
         if (config.relayJoinLeave) {
             sender.sendLeave(name, uuid);
         }
-        updatePresence(stillListed ? -1 : 0);
+        // Excluding the leaver by name is exact on every platform. The alternative — assuming the
+        // quit event fires before or after the player list shrinks — differs between Fabric,
+        // NeoForge and Bukkit, and guessing wrong leaves the count permanently off by one.
+        updatePresence(name);
     }
 
     public void playerChat(String name, String uuid, String message) {
@@ -328,8 +326,13 @@ public final class EnderLinkCore {
      * output and must not leak into the public chat channel.
      */
     private void reply(DiscordGateway.IncomingMessage message, String text) {
-        if (gateway != null && !config.managementChannelId.isBlank()
-                && config.managementChannelId.equals(message.channelId())) {
+        boolean isManagement = !config.managementChannelId.isBlank()
+                && config.managementChannelId.equals(message.channelId());
+
+        // The webhook can only write to the chat channel, so management replies go through the
+        // bot. The bot is also the fallback for chat replies when no webhook is configured —
+        // otherwise an inbound-only setup would accept commands and answer into the void.
+        if (gateway != null && (isManagement || !config.outboundEnabled())) {
             gateway.sendChannelMessage(message.channelId(), text);
         } else {
             sender.sendPlain(text);
@@ -347,14 +350,20 @@ public final class EnderLinkCore {
         return hours > 0 ? hours + "h " + minutes + "m" : minutes + "m";
     }
 
-    /** Publishes the player count as the bot's activity. */
-    private void updatePresence(int delta) {
+    /**
+     * Publishes the player count as the bot's activity.
+     *
+     * @param leaving name to discount, or null — see {@link #playerLeft}
+     */
+    private void updatePresence(String leaving) {
         if (gateway == null || !config.showPlayerCount) {
             return;
         }
         platform.runOnMainThread(() -> {
-            int online = Math.max(0, platform.onlinePlayerNames().size() + delta);
-            gateway.updatePresence(online, platform.maxPlayers());
+            long online = platform.onlinePlayerNames().stream()
+                    .filter(name -> leaving == null || !name.equalsIgnoreCase(leaving))
+                    .count();
+            gateway.updatePresence((int) online, platform.maxPlayers());
         });
     }
 

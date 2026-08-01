@@ -7,14 +7,15 @@ in that channel appear in in-game chat. Server-side only — players need no mod
 changes.
 
 - **Minecraft:** 26.2+
-- **Platforms:** Fabric · Paper (and forks)
+- **Platforms:** Fabric · NeoForge · Paper (and forks)
 - **Java:** 25+
-- **Requires:** Fabric API (Fabric only — the Paper plugin has no dependencies)
+- **Requires:** Fabric API (Fabric only — NeoForge and Paper have no dependencies)
 - **License:** MIT
 
 | Platform | Download | Notes |
 |---|---|---|
 | Fabric | `enderlink-fabric-1.0.0.jar` → `mods/` | Needs Fabric API |
+| NeoForge | `enderlink-neoforge-1.0.0.jar` → `mods/` | Dedicated servers only |
 | Paper | `enderlink-paper-1.0.0.jar` → `plugins/` | Works on Purpur, Pufferfish and other Paper forks |
 
 **Spigot is not currently supported.** Paper has replaced the chat and advancement APIs with its
@@ -272,11 +273,15 @@ The failure modes that make a naive bridge unpleasant to run:
 Three Gradle modules:
 
 ```
-core/     ~1,200 lines — Discord transport, config, formatting, commands.
-          Zero Minecraft, Fabric or Bukkit types. Compiled to Java 21.
-fabric/   ~200 lines of glue + one mixin (Fabric has no advancement event).
-paper/    ~160 lines of glue. No mixin — Bukkit has a real advancement event.
+core/      Discord transport, config, linking, formatting, commands.
+           Zero Minecraft, Fabric, NeoForge or Bukkit types. Compiled to Java 21.
+fabric/    glue + one mixin (Fabric has no advancement event).
+neoforge/  glue only. No mixin — NeoForge has AdvancementEarnEvent.
+paper/     glue only. No mixin — Bukkit has PlayerAdvancementDoneEvent.
 ```
+
+Fabric is the only platform that needs bytecode surgery, and only because it's the only one
+without an advancement event.
 
 Everything platform-specific goes through one five-method interface,
 [`BridgePlatform`](core/src/main/java/net/enderlink/core/BridgePlatform.java): config directory,

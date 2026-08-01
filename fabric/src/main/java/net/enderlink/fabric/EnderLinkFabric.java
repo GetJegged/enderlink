@@ -195,8 +195,7 @@ public final class EnderLinkFabric implements DedicatedServerModInitializer, Bri
 
         ServerPlayConnectionEvents.DISCONNECT.register((handler, disconnectedServer) -> {
             ServerPlayer player = handler.player;
-            // Fabric fires this before the player list shrinks.
-            core.playerLeft(player.getScoreboardName(), player.getUUID().toString(), true);
+            core.playerLeft(player.getScoreboardName(), player.getUUID().toString());
         });
 
         ServerMessageEvents.CHAT_MESSAGE.register((message, chatSender, params) ->

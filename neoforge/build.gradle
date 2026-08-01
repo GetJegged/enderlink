@@ -1,0 +1,59 @@
+plugins {
+    id 'net.neoforged.moddev' version "${moddev_plugin_version}"
+}
+
+base {
+    archivesName = "${project.archives_base_name}-neoforge"
+}
+
+neoForge {
+    version = project.neoforge_version
+
+    runs {
+        server {
+            server()
+        }
+    }
+
+    mods {
+        enderlink {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    implementation project(':core')
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": inputs.properties.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+
+    // ModDevGradle defaults its run tasks to a Java 21 toolchain. Minecraft 26.2 needs 25, and
+    // without this `runServer` fails looking for a JDK 21 that has no reason to be installed.
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+jar {
+    // Same as the other platforms: core is a plain Java project, so its classes are folded in
+    // rather than resolved as a mod dependency at runtime.
+    from project(':core').sourceSets.main.output
+
+    from("${rootDir}/LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}

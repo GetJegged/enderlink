@@ -493,39 +493,42 @@ public final class DiscordGateway {
      * pings work for every role immediately rather than only after someone uses one.
      */
     private void fetchRoles(String gid) {
-        try {
-            scheduler.execute(() -> {
-                try {
-                    HttpRequest request = HttpRequest.newBuilder()
-                            .uri(URI.create("https://discord.com/api/v10/guilds/" + gid + "/roles"))
-                            .timeout(Duration.ofSeconds(15))
-                            .header("Authorization", "Bot " + config.botToken)
-                            .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
-                            .GET()
-                            .build();
-                    HttpResponse<String> response =
-                            http.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://discord.com/api/v10/guilds/" + gid + "/roles"))
+                .timeout(Duration.ofSeconds(15))
+                .header("Authorization", "Bot " + config.botToken)
+                .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                .GET()
+                .build();
+
+        // Async on purpose. `scheduler` is the single thread that also sends heartbeats, so a
+        // blocking REST call here could stall one long enough for Discord to treat the connection
+        // as a zombie and drop it.
+        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenAccept(response -> {
                     if (response.statusCode() != 200) {
                         EnderLinkCore.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
                                 + "from in-game will not work", response.statusCode());
                         return;
                     }
-                    for (JsonElement element : JsonParser.parseString(response.body()).getAsJsonArray()) {
-                        JsonObject role = element.getAsJsonObject();
-                        String name = optString(role, "name");
-                        String id = optString(role, "id");
-                        if (!name.isBlank() && !id.isBlank() && !"@everyone".equals(name)) {
-                            roleIds.put(name.toLowerCase(Locale.ROOT), id);
+                    try {
+                        for (JsonElement element : JsonParser.parseString(response.body()).getAsJsonArray()) {
+                            JsonObject role = element.getAsJsonObject();
+                            String name = optString(role, "name");
+                            String id = optString(role, "id");
+                            if (!name.isBlank() && !id.isBlank() && !"@everyone".equals(name)) {
+                                roleIds.put(name.toLowerCase(Locale.ROOT), id);
+                            }
                         }
+                        EnderLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
+                    } catch (RuntimeException e) {
+                        EnderLinkCore.LOGGER.warn("Could not parse Discord roles: {}", e.getMessage());
                     }
-                    EnderLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
-                } catch (Exception e) {
-                    EnderLinkCore.LOGGER.warn("Could not list Discord roles: {}", e.getMessage());
-                }
-            });
-        } catch (java.util.concurrent.RejectedExecutionException e) {
-            // Shutting down.
-        }
+                })
+                .exceptionally(error -> {
+                    EnderLinkCore.LOGGER.warn("Could not list Discord roles: {}", error.getMessage());
+                    return null;
+                });
     }
 
     /**
@@ -543,31 +546,28 @@ public final class DiscordGateway {
         body.addProperty("content", DiscordSender.truncate(content, 1900));
         body.add("allowed_mentions", allowed);
 
-        try {
-            scheduler.execute(() -> {
-                try {
-                    HttpRequest request = HttpRequest.newBuilder()
-                            .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages"))
-                            .timeout(Duration.ofSeconds(15))
-                            .header("Authorization", "Bot " + config.botToken)
-                            .header("Content-Type", "application/json")
-                            .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
-                            .POST(HttpRequest.BodyPublishers.ofString(body.toString(),
-                                    java.nio.charset.StandardCharsets.UTF_8))
-                            .build();
-                    HttpResponse<String> response =
-                            http.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages"))
+                .timeout(Duration.ofSeconds(15))
+                .header("Authorization", "Bot " + config.botToken)
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "EnderLink (Minecraft Fabric mod, 1.0.0)")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString(),
+                        java.nio.charset.StandardCharsets.UTF_8))
+                .build();
+
+        // Async for the same reason as fetchRoles: never block the heartbeat thread.
+        http.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+                .thenAccept(response -> {
                     if (response.statusCode() >= 300) {
                         EnderLinkCore.LOGGER.warn("Could not post to channel {} (HTTP {}) — does the "
                                 + "bot have Send Messages there?", channelId, response.statusCode());
                     }
-                } catch (Exception e) {
-                    EnderLinkCore.LOGGER.warn("Could not post to channel {}: {}", channelId, e.getMessage());
-                }
-            });
-        } catch (java.util.concurrent.RejectedExecutionException e) {
-            // Shutting down.
-        }
+                })
+                .exceptionally(error -> {
+                    EnderLinkCore.LOGGER.warn("Could not post to channel {}: {}", channelId, error.getMessage());
+                    return null;
+                });
     }
 
     /** Discord user id for a name typed in Minecraft, or null if never seen. */

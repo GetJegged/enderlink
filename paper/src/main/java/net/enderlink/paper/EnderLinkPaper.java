@@ -133,8 +133,7 @@ public final class EnderLinkPaper extends JavaPlugin implements BridgePlatform, 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        // Bukkit still lists the player while the quit event runs.
-        core.playerLeft(player.getName(), player.getUniqueId().toString(), true);
+        core.playerLeft(player.getName(), player.getUniqueId().toString());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

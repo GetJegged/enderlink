@@ -2,13 +2,13 @@
 
 ## 1.0.0
 
-First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric and Paper**.
+First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric, NeoForge and Paper**.
 
 **Platforms**
-- Split into `core` (no server API anywhere), `fabric` and `paper` modules
+- Split into `core` (no server API anywhere), `fabric`, `neoforge` and `paper` modules
 - One `BridgePlatform` interface — five methods — is the whole surface a new platform needs
 - `core` compiles to Java 21 so its classes load on any server able to run either platform
-- Paper needs no mixin: Bukkit has a real advancement event
+- Only Fabric needs a mixin; NeoForge and Paper both have real advancement events
 - Spigot is not supported; Paper's chat and advancement APIs have diverged too far for one jar
 
 **Minecraft → Discord**
