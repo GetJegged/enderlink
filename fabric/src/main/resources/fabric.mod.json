@@ -9,15 +9,15 @@
   ],
   "contact": {
     "homepage": "https://modrinth.com/mod/enderlink",
-    "sources": "https://github.com/USERNAME/enderlink",
-    "issues": "https://github.com/USERNAME/enderlink/issues"
+    "sources": "https://github.com/getjegged/enderlink",
+    "issues": "https://github.com/getjegged/enderlink/issues"
   },
   "license": "MIT",
   "icon": "assets/enderlink/icon.png",
   "environment": "server",
   "entrypoints": {
     "server": [
-      "net.enderlink.EnderLink"
+      "net.enderlink.fabric.EnderLinkFabric"
     ]
   },
   "mixins": [

@@ -1,6 +1,6 @@
-package net.enderlink.mixin;
+package net.enderlink.fabric.mixin;
 
-import net.enderlink.EnderLink;
+import net.enderlink.fabric.EnderLinkFabric;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerPlayer;
@@ -67,7 +67,7 @@ public abstract class PlayerAdvancementsMixin {
             return;
         }
 
-        EnderLink bridge = EnderLink.get();
+        EnderLinkFabric bridge = EnderLinkFabric.get();
         if (bridge != null && this.player != null) {
             bridge.onAdvancement(this.player, advancement);
         }

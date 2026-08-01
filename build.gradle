@@ -1,52 +1,15 @@
-plugins {
-    // 26.1+: the NEW non-remapping loom plugin id (the old one was just "fabric-loom").
-    id 'net.fabricmc.fabric-loom' version '1.15-SNAPSHOT'
-    id 'maven-publish'
-}
+// Root project builds nothing itself — see core/, fabric/ and paper/.
+subprojects {
+    apply plugin: 'java'
 
-version = project.mod_version
-group = project.maven_group
+    group = project.maven_group
+    version = project.mod_version
 
-base {
-    archivesName = project.archives_base_name
-}
-
-repositories {
-    // No third-party mod repos needed — this mod talks to Discord over the JDK's own
-    // java.net.http client and parses JSON with the Gson that Minecraft already bundles.
-    // Nothing to shade, nothing to keep in sync with a Discord library's release cycle.
-}
-
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-
-    // 26.1+: NO `mappings` line — the game ships with official Mojang names already.
-    // 26.1+: plain `implementation`, NOT `modImplementation`.
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-}
-
-processResources {
-    inputs.property "version", project.version
-    filesMatching("fabric.mod.json") {
-        expand "version": inputs.properties.version
+    repositories {
+        mavenCentral()
     }
-}
 
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 25
-    it.options.encoding = 'UTF-8'
-}
-
-java {
-    withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
-}
-
-jar {
-    // 26.1+: the build output task is `jar` (was `remapJar`).
-    from("LICENSE") {
-        rename { "${it}_${project.archives_base_name}" }
+    tasks.withType(JavaCompile).configureEach {
+        it.options.encoding = 'UTF-8'
     }
 }

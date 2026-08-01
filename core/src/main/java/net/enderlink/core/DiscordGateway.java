@@ -1,4 +1,4 @@
-package net.enderlink;
+package net.enderlink.core;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -142,14 +142,14 @@ public final class DiscordGateway {
         if (!running.get()) {
             return;
         }
-        EnderLink.LOGGER.info("Connecting to Discord gateway…");
+        EnderLinkCore.LOGGER.info("Connecting to Discord gateway…");
 
         http.newWebSocketBuilder()
                 .connectTimeout(Duration.ofSeconds(20))
                 .buildAsync(URI.create(url), new Listener())
                 .whenComplete((ws, error) -> {
                     if (error != null) {
-                        EnderLink.LOGGER.warn("Gateway connection failed: {}", error.getMessage());
+                        EnderLinkCore.LOGGER.warn("Gateway connection failed: {}", error.getMessage());
                         scheduleReconnect();
                     } else {
                         socket = ws;
@@ -174,7 +174,7 @@ public final class DiscordGateway {
         // minute instead of hammering.
         long delay = Math.min(1L << Math.min(reconnectAttempts, 6), 60L);
         reconnectAttempts++;
-        EnderLink.LOGGER.info("Reconnecting to Discord in {}s", delay);
+        EnderLinkCore.LOGGER.info("Reconnecting to Discord in {}s", delay);
 
         try {
             scheduler.schedule(() -> {
@@ -191,7 +191,7 @@ public final class DiscordGateway {
     }
 
     private void fatal(String message) {
-        EnderLink.LOGGER.error("EnderLink inbound disabled: {}", message);
+        EnderLinkCore.LOGGER.error("EnderLink inbound disabled: {}", message);
         running.set(false);
         cancelHeartbeat();
     }
@@ -213,7 +213,7 @@ public final class DiscordGateway {
                     // a non-1000 code, which tells Discord to keep the session resumable.
                     // Stop beating first, or this fires again every interval while the close
                     // is in flight.
-                    EnderLink.LOGGER.warn("Discord did not acknowledge our heartbeat, reconnecting");
+                    EnderLinkCore.LOGGER.warn("Discord did not acknowledge our heartbeat, reconnecting");
                     cancelHeartbeat();
                     WebSocket ws = socket;
                     if (ws != null) {
@@ -295,7 +295,7 @@ public final class DiscordGateway {
         try {
             root = JsonParser.parseString(json).getAsJsonObject();
         } catch (Exception e) {
-            EnderLink.LOGGER.warn("Unparseable gateway frame: {}", e.getMessage());
+            EnderLinkCore.LOGGER.warn("Unparseable gateway frame: {}", e.getMessage());
             return;
         }
 
@@ -364,11 +364,11 @@ public final class DiscordGateway {
                 resumeUrl = optString(d, "resume_gateway_url");
                 reconnectAttempts = 0;
                 String botName = d.has("user") ? optString(d.getAsJsonObject("user"), "username") : "bot";
-                EnderLink.LOGGER.info("Connected to Discord as {}", botName);
+                EnderLinkCore.LOGGER.info("Connected to Discord as {}", botName);
             }
             case "RESUMED" -> {
                 reconnectAttempts = 0;
-                EnderLink.LOGGER.info("Resumed Discord session");
+                EnderLinkCore.LOGGER.info("Resumed Discord session");
             }
             case "MESSAGE_CREATE" -> handleMessage(d);
             default -> { }
@@ -471,7 +471,7 @@ public final class DiscordGateway {
                     HttpResponse<String> response =
                             http.send(request, HttpResponse.BodyHandlers.ofString());
                     if (response.statusCode() != 200) {
-                        EnderLink.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
+                        EnderLinkCore.LOGGER.warn("Could not list Discord roles (HTTP {}) — role pings "
                                 + "from in-game will not work", response.statusCode());
                         return;
                     }
@@ -483,9 +483,9 @@ public final class DiscordGateway {
                             roleIds.put(name.toLowerCase(Locale.ROOT), id);
                         }
                     }
-                    EnderLink.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
+                    EnderLinkCore.LOGGER.info("Loaded {} Discord roles for mentions", roleIds.size());
                 } catch (Exception e) {
-                    EnderLink.LOGGER.warn("Could not list Discord roles: {}", e.getMessage());
+                    EnderLinkCore.LOGGER.warn("Could not list Discord roles: {}", e.getMessage());
                 }
             });
         } catch (java.util.concurrent.RejectedExecutionException e) {
@@ -608,7 +608,7 @@ public final class DiscordGateway {
                 try {
                     handleFrame(complete);
                 } catch (Exception e) {
-                    EnderLink.LOGGER.error("Error handling gateway frame", e);
+                    EnderLinkCore.LOGGER.error("Error handling gateway frame", e);
                 }
             }
 
@@ -619,7 +619,7 @@ public final class DiscordGateway {
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             cancelHeartbeat();
-            EnderLink.LOGGER.info("Discord gateway closed ({}): {}", statusCode, reason);
+            EnderLinkCore.LOGGER.info("Discord gateway closed ({}): {}", statusCode, reason);
 
             switch (statusCode) {
                 case CLOSE_AUTH_FAILED -> {
@@ -648,7 +648,7 @@ public final class DiscordGateway {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             cancelHeartbeat();
-            EnderLink.LOGGER.warn("Discord gateway error: {}",
+            EnderLinkCore.LOGGER.warn("Discord gateway error: {}",
                     error == null ? "unknown" : error.getMessage());
             scheduleReconnect();
         }

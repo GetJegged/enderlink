@@ -1,0 +1,15 @@
+name: EnderLink
+version: '${version}'
+main: net.enderlink.paper.EnderLinkPaper
+description: Two-way Discord bridge. Chat, joins, deaths, advancements and mentions.
+author: getjegged
+website: https://github.com/getjegged/enderlink
+# Declares which Bukkit API generation this was written against. 1.21 is the conservative
+# floor — newer servers accept it, and it keeps the same jar loading on Spigot.
+api-version: '1.21'
+folia-supported: false
+
+commands:
+  discord:
+    description: Shows the server's Discord invite link.
+    usage: /discord

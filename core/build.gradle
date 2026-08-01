@@ -1,0 +1,21 @@
+// Platform-agnostic half of EnderLink: Discord transport, config, formatting, commands.
+// No Minecraft, Fabric or Bukkit types appear anywhere in this module.
+
+dependencies {
+    // Both Fabric and Paper already ship these, so they are compile-time only and nothing gets
+    // shaded into the released jars.
+    compileOnly "com.google.code.gson:gson:${project.gson_version}"
+    compileOnly "org.slf4j:slf4j-api:${project.slf4j_version}"
+}
+
+// Deliberately the LOWEST Java version any target platform requires, not the highest. Fabric on
+// 26.2 runs Java 25, but compiling core at 25 would emit class files a Java 21 Paper server
+// cannot load — and that failure would only show up at runtime, on someone else's server.
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}

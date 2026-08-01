@@ -1,10 +1,9 @@
-package net.enderlink;
+package net.enderlink.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -132,17 +131,19 @@ public final class BridgeConfig {
 
     // ---- Load / save ---------------------------------------------------------------------
 
-    private static Path configPath() {
-        return FabricLoader.getInstance().getConfigDir().resolve("enderlink.json");
-    }
+    /** Where this instance was loaded from. {@code transient} keeps Gson from serialising it. */
+    private transient Path path;
 
     /**
      * Reads the config, creating it with defaults if absent. A malformed file is never
      * overwritten — the operator's typo is more valuable than a fresh default, and silently
      * discarding a file that contains a bot token would be hostile.
+     *
+     * @param configDir platform-supplied config directory; Fabric and Paper disagree on where
+     *     that is, which is the only reason this is a parameter
      */
-    public static BridgeConfig load() {
-        Path path = configPath();
+    public static BridgeConfig load(Path configDir) {
+        Path path = configDir.resolve("enderlink.json");
         BridgeConfig config = new BridgeConfig();
 
         if (Files.exists(path)) {
@@ -153,24 +154,30 @@ public final class BridgeConfig {
                     config = parsed;
                 }
             } catch (IOException | JsonSyntaxException e) {
-                EnderLink.LOGGER.error(
+                EnderLinkCore.LOGGER.error(
                         "Could not read {} ({}). Running with defaults — the file was left untouched, fix it and restart.",
                         path, e.getMessage());
+                config.path = path;
                 return config;
             }
         }
 
+        // Gson builds a fresh instance when parsing, so the path is attached afterwards rather
+        // than in the constructor.
+        config.path = path;
         config.save();
         return config;
     }
 
     public void save() {
-        Path path = configPath();
+        if (path == null) {
+            return;
+        }
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, GSON.toJson(this) + System.lineSeparator(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            EnderLink.LOGGER.error("Could not write {}: {}", path, e.getMessage());
+            EnderLinkCore.LOGGER.error("Could not write {}: {}", path, e.getMessage());
         }
     }
 }

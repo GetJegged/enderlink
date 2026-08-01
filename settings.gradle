@@ -10,3 +10,8 @@ pluginManagement {
 }
 
 rootProject.name = 'enderlink'
+
+// core holds every line that does not touch a server API; the rest are thin platform adapters.
+include 'core'
+include 'fabric'
+include 'paper'

@@ -7,10 +7,19 @@ in that channel appear in in-game chat. Server-side only — players need no mod
 changes.
 
 - **Minecraft:** 26.2+
-- **Loader:** Fabric 0.19.3+
+- **Platforms:** Fabric · Paper (and forks)
 - **Java:** 25+
-- **Requires:** Fabric API
+- **Requires:** Fabric API (Fabric only — the Paper plugin has no dependencies)
 - **License:** MIT
+
+| Platform | Download | Notes |
+|---|---|---|
+| Fabric | `enderlink-fabric-1.0.0.jar` → `mods/` | Needs Fabric API |
+| Paper | `enderlink-paper-1.0.0.jar` → `plugins/` | Works on Purpur, Pufferfish and other Paper forks |
+
+**Spigot is not currently supported.** Paper has replaced the chat and advancement APIs with its
+own, and `Advancement#getDisplay()` now returns a Paper type — so one jar cannot bind to both for
+those events. Open an issue if you need Spigot and it can be revisited.
 
 ---
 
@@ -212,6 +221,26 @@ The failure modes that make a naive bridge unpleasant to run:
 
 ---
 
+## Architecture
+
+Three Gradle modules:
+
+```
+core/     ~1,200 lines — Discord transport, config, formatting, commands.
+          Zero Minecraft, Fabric or Bukkit types. Compiled to Java 21.
+fabric/   ~200 lines of glue + one mixin (Fabric has no advancement event).
+paper/    ~160 lines of glue. No mixin — Bukkit has a real advancement event.
+```
+
+Everything platform-specific goes through one five-method interface,
+[`BridgePlatform`](core/src/main/java/net/enderlink/core/BridgePlatform.java): config directory,
+run-on-main-thread, broadcast, online players, max players. That's the entire surface a new
+platform has to implement, which is why adding one is a few hundred lines rather than a fork.
+
+`core` is deliberately compiled to **Java 21** while the platform modules target 25 — its class
+files then load on any server new enough to run either, and a backport is not blocked by a
+bytecode version.
+
 ## Building
 
 Needs JDK 25.
@@ -221,7 +250,11 @@ export JAVA_HOME=/path/to/jdk-25
 ./gradlew build
 ```
 
-Output: `build/libs/enderlink-1.0.0.jar`. To test against a throwaway world: `./gradlew runServer`.
+Outputs `fabric/build/libs/enderlink-fabric-1.0.0.jar` and
+`paper/build/libs/enderlink-paper-1.0.0.jar`, each self-contained — `core` is folded in, and
+nothing is shaded because both platforms already ship Gson and slf4j.
+
+To test Fabric against a throwaway world: `./gradlew :fabric:runServer`.
 
 Minecraft 26.1+ ships unobfuscated, so there's no `mappings` dependency, dependencies use plain
 `implementation` rather than `modImplementation`, and the build output task is `jar`, not

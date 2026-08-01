@@ -1,4 +1,4 @@
-package net.enderlink;
+package net.enderlink.core;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -252,7 +252,7 @@ public final class DiscordSender {
 
                 if (status == 429) {
                     long waitMillis = retryAfterMillis(response.body());
-                    EnderLink.LOGGER.warn("Discord rate limited us, waiting {}ms", waitMillis);
+                    EnderLinkCore.LOGGER.warn("Discord rate limited us, waiting {}ms", waitMillis);
                     Thread.sleep(waitMillis);
                     continue;
                 }
@@ -264,14 +264,14 @@ public final class DiscordSender {
 
                 // 4xx that is not a rate limit: a bad or deleted webhook URL. Retrying will
                 // not fix it, so say so plainly once and drop the message.
-                EnderLink.LOGGER.error("Discord rejected the webhook post (HTTP {}): {}",
+                EnderLinkCore.LOGGER.error("Discord rejected the webhook post (HTTP {}): {}",
                         status, truncate(response.body(), 300));
                 return;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (Exception e) {
-                EnderLink.LOGGER.warn("Failed to reach Discord ({}), attempt {}/3", e.getMessage(), attempt + 1);
+                EnderLinkCore.LOGGER.warn("Failed to reach Discord ({}), attempt {}/3", e.getMessage(), attempt + 1);
                 try {
                     Thread.sleep(1000L * (attempt + 1));
                 } catch (InterruptedException ie) {

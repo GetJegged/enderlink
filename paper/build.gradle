@@ -1,0 +1,44 @@
+base {
+    archivesName = "${project.archives_base_name}-paper"
+}
+
+repositories {
+    maven {
+        name = 'PaperMC'
+        url = 'https://repo.papermc.io/repository/maven-public/'
+    }
+}
+
+dependencies {
+    // paper-api already brings Gson, slf4j and Adventure, so nothing is shaded here either.
+    compileOnly "io.papermc.paper:paper-api:${project.paper_api_version}"
+
+    implementation project(':core')
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("plugin.yml") {
+        expand "version": inputs.properties.version
+    }
+}
+
+// paper-api for 26.2 is itself built for Java 25, so this module has to match — Gradle refuses
+// the dependency outright at 21. core stays at 21 regardless: its class files load fine here,
+// and keeping it low is what would make a backport to an older Paper or Fabric line possible.
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+    from project(':core').sourceSets.main.output
+
+    from("${rootDir}/LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
