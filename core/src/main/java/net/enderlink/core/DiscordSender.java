@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -233,7 +234,7 @@ public final class DiscordSender {
 
         // Discord rejects an empty username outright, so an operator who blanks `server-name`
         // should fall back to the webhook's own configured name rather than get a 400.
-        String name = truncate(username, 80);
+        String name = truncate(sanitiseWebhookName(username), 80);
         if (!name.isBlank()) {
             payload.addProperty("username", name);
         }
@@ -403,6 +404,26 @@ public final class DiscordSender {
             out.append(c);
         }
         return out.toString();
+    }
+
+    /**
+     * Works around Discord rejecting webhook usernames that contain "discord" or "clyde".
+     *
+     * <p>Minecraft names are not subject to that rule, so a player called {@code Discordant}
+     * would otherwise have every chat message bounced with a 400 while everyone else's worked —
+     * a failure that looks like the bridge randomly ignoring one person. A zero-width space
+     * breaks the substring match while leaving the name looking untouched.
+     */
+    static String sanitiseWebhookName(String name) {
+        if (name == null) {
+            return "";
+        }
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (!lower.contains("discord") && !lower.contains("clyde")) {
+            return name;
+        }
+        return name.replaceAll("(?i)(d)(iscord)", "$1​$2")
+                .replaceAll("(?i)(c)(lyde)", "$1​$2");
     }
 
     static String truncate(String input, int limit) {

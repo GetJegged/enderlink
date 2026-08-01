@@ -313,6 +313,34 @@ Minecraft 26.1+ ships unobfuscated, so there's no `mappings` dependency, depende
 
 ---
 
+## Testing it without Discord
+
+`tools/mock-discord.py` pretends to be a Discord webhook and prints everything the mod would
+send, so you can watch the whole Minecraft → Discord path without a Discord account, a bot, or
+touching your live server.
+
+```bash
+python3 tools/mock-discord.py            # terminal 1  (add --json for raw payloads)
+./gradlew :fabric:runServer              # terminal 2
+```
+
+Point `webhook-url` at `http://127.0.0.1:8787/webhook` in the run directory's config
+(`fabric/run/config/enderlink.json`), and you'll see:
+
+```
+[Minecraft Server] ✅ Server is **online**
+   ↳ @everyone blocked
+<Steve> hello world  (avatar: https://mc-heads.net/avatar/…/64)
+   ↳ @everyone blocked
+```
+
+Then connect a 26.2 client to `localhost` and try joining, chatting, dying and earning an
+advancement — each should appear immediately. This exercises the real mod on a real server; only
+the Discord endpoint is faked.
+
+To test the **inbound** half you need a real bot, since nothing local can imitate Discord's
+gateway. See [Discord setup](#discord-setup).
+
 ## Contributing
 
 Issues and pull requests welcome — particularly ports to other Minecraft versions.
