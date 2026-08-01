@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "net.enderlink.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [],
+  "client": [],
+  "server": [
+    "PlayerAdvancementsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

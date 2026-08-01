@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "enderlink",
+  "version": "${version}",
+  "name": "EnderLink",
+  "description": "Two-way Discord bridge for Fabric 26.2+ servers. Joins, leaves, deaths, advancements and server status are posted to Discord; messages typed in Discord appear in in-game chat. Server-side only, and no external libraries — players need no mods.",
+  "authors": [
+    "Blake"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/enderlink",
+    "sources": "https://github.com/USERNAME/enderlink",
+    "issues": "https://github.com/USERNAME/enderlink/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/enderlink/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      "net.enderlink.EnderLink"
+    ]
+  },
+  "mixins": [
+    "enderlink.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": ">=26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {}
+}
