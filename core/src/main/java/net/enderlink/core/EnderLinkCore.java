@@ -225,6 +225,10 @@ public final class EnderLinkCore {
     private boolean handleCommand(String verb, String args,
                                   DiscordGateway.IncomingMessage message, boolean management) {
         switch (verb) {
+            case "help", "commands" -> {
+                reply(message, helpText(management));
+                return true;
+            }
             case "list" -> {
                 if (!config.enableListCommand) {
                     return false;
@@ -278,6 +282,44 @@ public final class EnderLinkCore {
                 return false;
             }
         }
+    }
+
+    /**
+     * Lists only what is actually available. Advertising a command that is switched off is worse
+     * than listing nothing — the person tries it, gets silence, and concludes the bridge is
+     * broken. Management commands appear only in the management channel, so the public channel
+     * never learns that remote console access exists.
+     */
+    private String helpText(boolean management) {
+        String p = config.commandPrefix;
+        StringBuilder out = new StringBuilder("**EnderLink** — bridging this channel with the "
+                + "Minecraft server.\n\n");
+
+        if (config.enableListCommand) {
+            out.append('`').append(p).append("list` — who's online\n");
+        }
+        out.append('`').append(p).append("tps` — server tick rate\n");
+        out.append('`').append(p).append("uptime` — how long the server has been up\n");
+
+        if (config.enableLinking) {
+            out.append('`').append(p).append("link <code>` — link your Minecraft account "
+                    + "(run `/link` in-game to get a code)\n");
+            out.append('`').append(p).append("unlink` — remove that link\n");
+        }
+
+        if (management) {
+            out.append("\n**Management channel**\n")
+               .append('`').append(p).append("<server command>` — runs on the server console, "
+                       + "e.g. `").append(p).append("whitelist list`. Requires the management role.\n");
+        }
+
+        if (config.relayChat) {
+            out.append("\nAnything else you type here goes to in-game chat.");
+        } else {
+            out.append("\nAnything else you type here goes to in-game chat; in-game chat is not "
+                    + "relayed back.");
+        }
+        return out.toString();
     }
 
     // ---- Management channel ------------------------------------------------------------------------

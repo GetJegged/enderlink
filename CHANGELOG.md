@@ -40,6 +40,8 @@ First release. Two-way Discord bridge for Minecraft 26.2 on **Fabric, NeoForge a
   so `@everyone` remains impossible
 - Roles are read once over the REST API; users are learned from channel activity, which avoids
   requiring the privileged `GUILD_MEMBERS` intent
+- `!help` lists only the commands that are enabled; management commands appear
+  solely in the management channel
 - `!list` in Discord replies with who is online
 - `/discord` in-game prints the configured invite link
 - Bot activity shows the live player count
